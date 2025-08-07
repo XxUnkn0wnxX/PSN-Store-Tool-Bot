@@ -78,10 +78,10 @@ Open an [issue](https://github.com/yourusername/PSNToolBot/issues) or submit a p
 
 ## 🧾 Credits
 
-- 👨‍💻 **Bot Developer**: [Gabriel Roriz Silva](https://github.com/groriz11)
+- 👨‍💻 **Bot Developer**: [𐌔𐌉𐌂𐌊.dll](https://github.com/sickfff)
 - 🧠 Inspired by tools and ideas shared within the **PS3 modding & dev community**
 - 📘 Special thanks to contributors and open-source libraries that made this possible
 
 ---
 
-<p align="center"><b>Built with 💻, ☕, and 🎮 by Gabriel Roriz Silva</b></p>
+<p align="center"><b>Built with 💻, ☕, and 🎮 by 𐌔𐌉𐌂𐌊.dll</b></p>
