@@ -166,7 +166,10 @@ Each ID is processed individually; the bot sends the familiar avatar preview emb
 ## 📝 TODO
 
 - [ ] Store NPSSO/PDC values in an encrypted local database to support multiple users safely.
+  - [ ] Add a slash command to capture NPSSO/PDC and persist it securely.
 - [ ] Add a `--env` CLI flag so the bot can explicitly load credentials from `.env` when desired.
+- [ ] Build a per-user cart UI with buttons to review/remove queued items.
+- [ ] Add buttons to avatar preview embeds so users can add items to cart directly.
 
 ## 💬 Support & Feedback
 
