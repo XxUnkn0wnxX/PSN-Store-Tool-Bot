@@ -13,7 +13,7 @@ tutorialstring = (
 
 credits_string = (
     "💻 **Original Creator:** [groriz11](https://github.com/groriz11)\n"
-    "🛠️ **Maintained by:** OpenAI\n"
+    "🛠️ **Maintained by:** [OpenAI](https://openai.com/codex/)\n"
     "🤖 **Bot Development:** PSNToolBot Team\n"
     "⚡ **Powered by:** Discord.py & PSNAWP\n"
     "🎨 **Enhanced with:** Custom embeds and emojis"
