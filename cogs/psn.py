@@ -36,7 +36,60 @@ invalid_region = discord.Embed(
 npsso_desc = "NPSSO token (leave blank to use default)"
 token_desc = "PDC cookie (leave blank to use default)"
 id_desc = "ID from psprices product_id command"
-region_desc = "For example 'en-US', check 'playstation.com'"
+region_desc = "Region code (e.g. 'en-US' or 'US')"
+
+COUNTRY_OVERRIDES = {
+    "UK": "en-GB",
+    "GB": "en-GB",
+    "US": "en-US",
+    "CA": "en-CA",
+    "AU": "en-AU",
+    "NZ": "en-NZ",
+    "MX": "es-MX",
+    "BR": "pt-BR",
+    "PT": "pt-PT",
+    "DE": "de-DE",
+    "FR": "fr-FR",
+    "ES": "es-ES",
+    "IT": "it-IT",
+    "JP": "ja-JP",
+    "KR": "ko-KR",
+    "CN": "zh-CN",
+    "HK": "zh-HK",
+    "TW": "zh-TW",
+    "RU": "ru-RU",
+    "ZA": "en-ZA",
+    "SG": "en-SG",
+}
+
+
+def normalize_region_input(value: str) -> str:
+    candidate = value.strip()
+    if not candidate:
+        raise APIError("Region is required")
+
+    # direct match (case-insensitive)
+    for region in valid_regions:
+        if region.lower() == candidate.lower():
+            return region
+
+    upper = candidate.upper()
+
+    # explicit overrides first
+    if upper in COUNTRY_OVERRIDES:
+        return COUNTRY_OVERRIDES[upper]
+
+    # default to en-<country>
+    if len(upper) == 2:
+        preferred = f"en-{upper}"
+        if preferred in valid_regions:
+            return preferred
+        # fall back to first region ending with country code
+        for region in valid_regions:
+            if region.upper().endswith(f"-{upper}"):
+                return region
+
+    raise APIError("Invalid region code or alias")
 
 
 class PSNCog(commands.Cog):
@@ -63,8 +116,10 @@ class PSNCog(commands.Cog):
             color=0xffa726)
         await ctx.respond(embed=embed_checking)
 
-        if region not in valid_regions:
-            await ctx.respond(embed=invalid_region)
+        try:
+            region = normalize_region_input(region)
+        except APIError as e:
+            await ctx.respond(embed=discord.Embed(title="❌ Invalid Region", description=f"🚫 {e}", color=0xe74c3c))
             return
 
         cookie_arg = pdc or None
@@ -110,8 +165,10 @@ class PSNCog(commands.Cog):
             color=0xf39c12)
         await ctx.respond(embed=embed_adding)
 
-        if region not in valid_regions:
-            await ctx.respond(embed=invalid_region)
+        try:
+            region = normalize_region_input(region)
+        except APIError as e:
+            await ctx.respond(embed=discord.Embed(title="❌ Invalid Region", description=f"🚫 {e}", color=0xe74c3c))
             return
 
         cookie_arg = pdc or None
@@ -157,8 +214,10 @@ class PSNCog(commands.Cog):
             color=0xf39c12)
         await ctx.respond(embed=embed_removing)
 
-        if region not in valid_regions:
-            await ctx.respond(embed=invalid_region)
+        try:
+            region = normalize_region_input(region)
+        except APIError as e:
+            await ctx.respond(embed=discord.Embed(title="❌ Invalid Region", description=f"🚫 {e}", color=0xe74c3c))
             return
 
         cookie_arg = pdc or None
