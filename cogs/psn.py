@@ -130,6 +130,12 @@ class PSNCog(commands.Cog):
                              pdccws_p=cookie_arg,
                              npsso=npsso_arg)
 
+        if cookie_arg:
+            print(f"[psn] Using custom PDC from command for {ctx.author}: {cookie_arg}")
+        if npsso_arg:
+            masked = npsso_arg[:4] + "…" + npsso_arg[-4:] if len(npsso_arg) > 8 else "***"
+            print(f"[psn] Using custom NPSSO from command for {ctx.author}: {masked}")
+
         try:
             avatar_url = await self.api.check_avatar(request)
         except APIError as e:
@@ -179,6 +185,11 @@ class PSNCog(commands.Cog):
                              pdccws_p=cookie_arg,
                              npsso=npsso_arg)
 
+        if cookie_arg:
+            print(f"[psn] Using custom PDC from command for {ctx.author}: {cookie_arg}")
+        if npsso_arg:
+            print(f"[psn] Using custom NPSSO from command for {ctx.author}: {npsso_arg}")
+
         try:
             await self.api.add_to_cart(request)
         except APIError as e:
@@ -227,6 +238,11 @@ class PSNCog(commands.Cog):
                              product_id=product_id,
                              pdccws_p=cookie_arg,
                              npsso=npsso_arg)
+
+        if cookie_arg:
+            print(f"[psn] Using custom PDC from command for {ctx.author}: {cookie_arg}")
+        if npsso_arg:
+            print(f"[psn] Using custom NPSSO from command for {ctx.author}: {npsso_arg}")
 
         try:
             await self.api.remove_from_cart(request)
