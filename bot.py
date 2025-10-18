@@ -50,13 +50,13 @@ async def load_extensions() -> None:
     global _cogs_loaded
     if _cogs_loaded:
         return
-    print("[setup] loading cogs…")
+    print("[setup] loading cogs…", flush=True)
     for name in COGS:
         loaded = False
         for mod_path in (f"cogs.{name}", name):
             try:
                 bot.load_extension(mod_path)
-                print(f"[cog] loaded {mod_path}")
+                print(f"[cog] loaded {mod_path}", flush=True)
                 loaded = True
                 break
             except ModuleNotFoundError:
@@ -67,7 +67,7 @@ async def load_extensions() -> None:
         if not loaded:
             print(f"[cog] FAILED to load {name} (tried cogs.{name} and {name})")
 
-    print("[setup] finished loading cogs")
+    print("[setup] finished loading cogs", flush=True)
     _cogs_loaded = True
 
 
@@ -119,7 +119,9 @@ async def on_ready() -> None:
         f"https://discord.com/api/oauth2/authorize?"
         f"client_id={(APPLICATION_ID or bot.user.id)}&scope=bot%20applications.commands&permissions=8&integration_type=0"
     )
+    print("[sync] Syncing global commands…", flush=True)
     global_commands = await bot.sync_commands()
+    print("[sync] Syncing guild commands…", flush=True)
     guild_commands = await bot.sync_commands(guild_ids=[GUILD_ID])
     print(f"[sync] Global commands: {[cmd.qualified_name for cmd in global_commands]}", flush=True)
     print(f"[sync] Guild commands ({GUILD_ID}): {[cmd.qualified_name for cmd in guild_commands]}", flush=True)
