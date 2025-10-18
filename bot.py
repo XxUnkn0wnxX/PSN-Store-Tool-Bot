@@ -1,6 +1,7 @@
 import os
 import traceback
 import asyncio
+import aiohttp
 import discord
 from dotenv import load_dotenv
 from discord.ext import commands
@@ -33,6 +34,7 @@ activity = discord.Activity(
 
 # Names of your cog modules (with or without a cogs/ package)
 COGS = ["misc", "psn", "psprices"]
+APPLICATION_ID: str | None = None
 
 
 bot = commands.Bot(
@@ -63,6 +65,47 @@ async def load_extensions() -> None:
     print("[setup] finished loading cogs")
 
 
+async def ensure_guild_membership(token: str, guild_id: int) -> bool:
+    global APPLICATION_ID
+
+    headers = {
+        "Authorization": f"Bot {token}",
+        "User-Agent": "PSNToolBot/1.0 (https://github.com/XxUnkn0wnxX/PSN-Store-Tool-Bot)"
+    }
+
+    async with aiohttp.ClientSession(headers=headers) as session:
+        async with session.get("https://discord.com/api/v10/oauth2/applications/@me") as resp:
+            if resp.status != 200:
+                text = await resp.text()
+                raise SystemExit(f"Failed to validate bot token (status {resp.status}): {text}")
+            data = await resp.json()
+            APPLICATION_ID = data.get("id")
+
+        async with session.get(f"https://discord.com/api/v10/guilds/{guild_id}") as resp:
+            if resp.status == 200:
+                return True
+            if resp.status in {403, 404}:
+                invite = (
+                    "https://discord.com/api/oauth2/authorize?"
+                    f"client_id={APPLICATION_ID}&scope=bot%20applications.commands&permissions=8&integration_type=0"
+                )
+                print(
+                    f"[warn] Bot is not invited to guild {guild_id}.\n\n"
+                    f"Invite it using:\n\n{invite}\n"
+                )
+                return False
+
+            text = await resp.text()
+            raise SystemExit(
+                f"Unexpected response when checking guild {guild_id} (status {resp.status}): {text}"
+            )
+
+
+@bot.event
+async def setup_hook() -> None:
+    await load_extensions()
+
+
 @bot.event
 async def on_ready() -> None:
     print(f"[lib] Pycord version: {discord.__version__}")
@@ -70,31 +113,10 @@ async def on_ready() -> None:
     print(f"[ready] Logged in as {bot.user} ({bot.user.id})")
     invite_url = (
         f"https://discord.com/api/oauth2/authorize?"
-        f"client_id={bot.user.id}&scope=bot%20applications.commands&permissions=8&integration_type=0"
+        f"client_id={(APPLICATION_ID or bot.user.id)}&scope=bot%20applications.commands&permissions=8&integration_type=0"
     )
-    guild = bot.get_guild(GUILD_ID)
-    if guild is None:
-        print("[warn] Bot is not a member of the configured guild "
-              f"({GUILD_ID}). Please invite it using:\n\n{invite_url}\n")
-        await bot.close()
-        return
-
-    try:
-        await bot.sync_commands()
-        await bot.sync_commands(guild_id=GUILD_ID)
-    except discord.Forbidden as exc:
-        print(f"[error] Missing access to guild {GUILD_ID}: {exc}. "
-              f"Invite the bot using:\n\n{invite_url}\n")
-        await bot.close()
-        return
-    except discord.HTTPException as exc:
-        if exc.status == 403:
-            print(f"[error] Missing access to guild {GUILD_ID}: {exc.text}. "
-                  f"Invite the bot using:\n\n{invite_url}\n")
-            await bot.close()
-            return
-        raise
-
+    await bot.sync_commands()
+    await bot.sync_commands(guild_id=GUILD_ID)
     print(f"[ready] Commands   : {[c.qualified_name for c in bot.application_commands]}")
     print(f"""
 ╔═══════════════════════════════════════════════════════════════════════════════════════╗
@@ -129,13 +151,16 @@ async def main() -> None:
     # Optional: ensure NPSSO exists too if your cogs need it
     if not os.getenv("NPSSO"):
         print("[warn] NPSSO not set; PSN commands may error at runtime.")
+
+    has_access = await ensure_guild_membership(token, GUILD_ID)
+    if not has_access:
+        return
+
     await load_extensions()
     print("Starting bot...")
     try:
         await bot.start(token)
     finally:
-        if bot.is_closed():
-            return
         await bot.close()
 
 
