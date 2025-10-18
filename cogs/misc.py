@@ -49,7 +49,7 @@ def build_help_embed(prefix: str) -> discord.Embed:
     embed.add_field(
         name="🎮 PSN Avatar Tools",
         value=(
-            f"• `/psn check <region> <product_id>` → `{prefix}psn check <product_id> <region>` (alias: `{prefix}check_avatar`)\n"
+            f"• `/psn check <region> <product_id>` → `{prefix}psn check <region> <product_id> [more IDs…]` (alias: `{prefix}check_avatar`)\n"
             f"• `/psn add <region> <product_id>` → `{prefix}psn add <region> <product_id> [more IDs…]` (alias: `{prefix}add_avatar`)\n"
             f"• `/psn remove <region> <product_id>` → `{prefix}psn remove <region> <product_id> [more IDs…]` (alias: `{prefix}remove_avatar`)\n"
             f"• `/psn account` → `{prefix}psn account <username>` (alias: `{prefix}account_id`)\n"

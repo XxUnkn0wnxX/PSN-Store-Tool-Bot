@@ -201,6 +201,17 @@ class PSNCog(commands.Cog):
             await ctx.send(embed=embed)
             return None
 
+        try:
+            normalize_region_input(tokens[0])
+        except APIError:
+            if len(tokens) >= 2:
+                try:
+                    normalize_region_input(tokens[1])
+                except APIError:
+                    pass
+                else:
+                    tokens = [tokens[1], tokens[0], *tokens[2:]]
+
         region = tokens[0]
         product_ids = tokens[1:]
 
@@ -208,11 +219,16 @@ class PSNCog(commands.Cog):
             pid for pid in product_ids if any(symbol in pid for symbol in ("%", "=", ";"))
         ]
         if cookie_like:
+            slash_equiv = {
+                "add": "add",
+                "remove": "remove",
+                "check": "check",
+            }.get(operation, "check")
             embed = discord.Embed(
                 title="⚠️ Cookie Detected",
                 description=(
                     "Prefix commands cannot accept NPSSO or cookie overrides. "
-                    "Use the slash command variant (e.g. `/psn add`) to supply those values."
+                    f"Use the slash command variant (e.g. `/psn {slash_equiv}`) to supply those values."
                 ),
                 color=0xe67e22,
             )
@@ -234,15 +250,25 @@ class PSNCog(commands.Cog):
     async def _handle_check(
         self,
         ctx,
-        product_id: str,
+        *,
+        product_ids: list[str],
         region: str,
         cookie_arg: str | None = None,
         npsso_arg: str | None = None,
-        *,
         cookie_override: bool = False,
         npsso_override: bool = False,
     ) -> None:
         if not await self._ensure_allowed_guild(ctx):
+            return
+
+        ids = [pid.strip() for pid in product_ids if pid.strip()]
+        if not ids:
+            embed = discord.Embed(
+                title="ℹ️ Missing Product IDs",
+                description="Provide at least one product ID to check.",
+                color=0xf1c40f,
+            )
+            await self._send_embed(ctx, embed)
             return
 
         try:
@@ -258,62 +284,117 @@ class PSNCog(commands.Cog):
             )
             return
 
-        request = PSNRequest(
-            region=region,
-            product_id=product_id,
-            pdccws_p=cookie_arg,
-            npsso=npsso_arg,
-        )
-
         if cookie_arg:
             print(f"[psn] Using custom PDC from command for {ctx.author}: {mask_value(cookie_arg)}")
         if npsso_arg:
             masked = npsso_arg[:4] + "…" + npsso_arg[-4:] if len(npsso_arg) > 8 else "***"
             print(f"[psn] Using custom NPSSO from command for {ctx.author}: {masked}")
 
-        await self._send_embed(
-            ctx,
-            discord.Embed(
-                title="🔍 Checking Avatar...",
-                description="⏳ Please wait while we fetch your avatar!",
-                color=0xffa726,
-            ),
+        is_app_context = self._is_app_context(ctx)
+        is_batch = len(ids) > 1
+        progress_title = "🔍 Checking Avatars..." if is_batch else "🔍 Checking Avatar..."
+        progress_desc = (
+            f"⏳ Fetching {len(ids)} avatar(s)…" if is_batch else "⏳ Please wait while we fetch your avatar!"
         )
 
-        try:
-            avatar_url = await self.api.check_avatar(request)
-        except APIError as e:
-            message = e.message if getattr(e, "message", None) else str(e)
-            followup = self._is_app_context(ctx)
-            if getattr(e, "code", None) == "auth":
-                hints = getattr(e, "hints", {}) or {}
-                need_cookie = hints.get("cookie", True)
-                need_npsso = hints.get("npsso", True)
-                embed_error = self._auth_error_embed(
-                    message,
-                    cookie_override,
-                    npsso_override,
-                    need_cookie,
-                    need_npsso,
+        if is_app_context:
+            await ctx.respond(
+                embed=discord.Embed(
+                    title=progress_title,
+                    description=progress_desc,
+                    color=0xffa726,
                 )
+            )
+            progress_message = None
+        else:
+            progress_message = await ctx.send(
+                embed=discord.Embed(
+                    title=progress_title,
+                    description=progress_desc,
+                    color=0xffa726,
+                )
+            )
+
+        successes: list[tuple[str, str]] = []
+        failures: list[tuple[str, str]] = []
+
+        for pid in ids:
+            request = PSNRequest(
+                region=region,
+                product_id=pid,
+                pdccws_p=cookie_arg,
+                npsso=npsso_arg,
+            )
+
+            try:
+                avatar_url = await self.api.check_avatar(request)
+                successes.append((pid, avatar_url))
+            except APIError as e:
+                message = e.message if getattr(e, "message", None) else str(e)
+                if getattr(e, "code", None) == "auth":
+                    hints = getattr(e, "hints", {}) or {}
+                    need_cookie = hints.get("cookie", True)
+                    need_npsso = hints.get("npsso", True)
+                    embed_error = self._auth_error_embed(
+                        message,
+                        cookie_override,
+                        npsso_override,
+                        need_cookie,
+                        need_npsso,
+                    )
+                    if is_app_context:
+                        await ctx.edit(embed=embed_error)
+                    elif progress_message is not None:
+                        await progress_message.edit(embed=embed_error)
+                    else:
+                        await self._send_embed(ctx, embed_error)
+                    return
+                failures.append((pid, message))
+
+        followup = self._is_app_context(ctx)
+
+        def make_success_embed(pid: str, avatar_url: str, index: int, total: int) -> discord.Embed:
+            embed = discord.Embed(
+                title="✅ Avatar Found!" if total == 1 else f"✅ Avatar Found ({index}/{total})",
+                description=f"🖼️ Preview for **{pid}**:",
+                color=0x27ae60,
+            )
+            embed.set_image(url=avatar_url)
+            embed.set_footer(text="🎮 Ready to add to cart!")
+            return embed
+
+        async def update_progress(embed: discord.Embed) -> None:
+            if is_app_context:
+                await ctx.edit(embed=embed)
+            elif progress_message is not None:
+                await progress_message.edit(embed=embed)
             else:
-                embed_error = discord.Embed(
-                    title="❌ Error Occurred",
-                    description=f"🚫 {message}",
-                    color=0xe74c3c,
-                )
-                embed_error.set_footer(text="💡 Check your inputs and try again!")
-            await self._send_embed(ctx, embed_error, followup=followup)
+                await self._send_embed(ctx, embed)
+
+        if successes:
+            first_pid, first_url = successes[0]
+            await update_progress(make_success_embed(first_pid, first_url, 1, len(successes)))
+            for index, (pid, avatar_url) in enumerate(successes[1:], start=2):
+                await self._send_embed(ctx, make_success_embed(pid, avatar_url, index, len(successes)), followup=followup)
+        else:
+            failure_lines = [f"• **{pid}** — {msg}" for pid, msg in failures] or ["No avatars matched the provided IDs."]
+            embed_error = discord.Embed(
+                title="❌ Failed to Fetch Avatars",
+                description="\n".join(failure_lines),
+                color=0xe74c3c,
+            )
+            embed_error.set_footer(text="💡 Check the inputs and try again!")
+            await update_progress(embed_error)
             return
 
-        embed_success = discord.Embed(
-            title="✅ Avatar Found!",
-            description="🖼️ Here's your PlayStation avatar preview:",
-            color=0x27ae60,
-        )
-        embed_success.set_image(url=avatar_url)
-        embed_success.set_footer(text="🎮 Ready to add to cart!")
-        await self._send_embed(ctx, embed_success, followup=self._is_app_context(ctx))
+        if failures:
+            failure_summary = discord.Embed(
+                title="⚠️ Some Avatars Failed",
+                description="\n".join(f"• **{pid}** — {msg}" for pid, msg in failures),
+                color=0xf1c40f,
+            )
+            failure_summary.set_footer(text="💡 Review the failed entries and try again.")
+            await self._send_embed(ctx, failure_summary, followup=followup)
 
     async def _handle_add_or_remove(
         self,
@@ -559,20 +640,14 @@ class PSNCog(commands.Cog):
             await self._send_embed(ctx, embed)
 
     @psn_prefix.command(name="check")
-    async def psn_prefix_check(self, ctx: commands.Context, product_id: str, region: str) -> None:
-        if self._prefix_has_extra_args(ctx):
-            await self._send_embed(
-                ctx,
-                discord.Embed(
-                    title="⚠️ Overrides Not Available",
-                    description="Prefix commands only accept `product_id` and `region`. Use `/psn check` if you need to supply NPSSO or PDC overrides.",
-                    color=0xf1c40f,
-                ),
-            )
+    async def psn_prefix_check(self, ctx: commands.Context, *, entries: str = "") -> None:
+        parsed = await self._prepare_prefix_batch(ctx, entries, "check")
+        if parsed is None:
             return
+        region, product_ids = parsed
         await self._handle_check(
             ctx,
-            product_id=product_id,
+            product_ids=product_ids,
             region=region,
             cookie_arg=None,
             npsso_arg=None,
@@ -629,20 +704,14 @@ class PSNCog(commands.Cog):
         await self._handle_account(ctx, username)
 
     @commands.command(name="check_avatar")
-    async def check_avatar_prefix(self, ctx: commands.Context, product_id: str, region: str) -> None:
-        if self._prefix_has_extra_args(ctx):
-            await self._send_embed(
-                ctx,
-                discord.Embed(
-                    title="⚠️ Overrides Not Available",
-                    description="Prefix commands only accept `product_id` and `region`. Use `/psn check` if you need to supply NPSSO or PDC overrides.",
-                    color=0xf1c40f,
-                ),
-            )
+    async def check_avatar_prefix(self, ctx: commands.Context, *, entries: str = "") -> None:
+        parsed = await self._prepare_prefix_batch(ctx, entries, "check")
+        if parsed is None:
             return
+        region, product_ids = parsed
         await self._handle_check(
             ctx,
-            product_id=product_id,
+            product_ids=product_ids,
             region=region,
             cookie_arg=None,
             npsso_arg=None,
