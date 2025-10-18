@@ -61,10 +61,10 @@ class PSNCog(commands.Cog):
             title="🔍 Checking Avatar...",
             description="⏳ Please wait while we fetch your avatar!",
             color=0xffa726)
-        await ctx.respond(embed=embed_checking, ephemeral=True)
+        await ctx.respond(embed=embed_checking)
 
         if region not in valid_regions:
-            await ctx.respond(embed=invalid_region, ephemeral=True)
+            await ctx.respond(embed=invalid_region)
             return
 
         cookie_arg = pdc or None
@@ -82,7 +82,7 @@ class PSNCog(commands.Cog):
                                         description=f"🚫 {e}",
                                         color=0xe74c3c)
             embed_error.set_footer(text="💡 Check your inputs and try again!")
-            await ctx.respond(embed=embed_error, ephemeral=True)
+            await ctx.respond(embed=embed_error)
             return
 
         embed_success = discord.Embed(
@@ -91,7 +91,7 @@ class PSNCog(commands.Cog):
             color=0x27ae60)
         embed_success.set_image(url=avatar_url)
         embed_success.set_footer(text="🎮 Ready to add to cart!")
-        await ctx.respond(embed=embed_success, ephemeral=True)
+        await ctx.respond(embed=embed_success)
 
     @psn_group.command(
         description="🛒 Adds the avatar you input into your cart.")
@@ -108,10 +108,10 @@ class PSNCog(commands.Cog):
             title="🛒 Adding to Cart...",
             description="⏳ Please wait while we add your avatar to cart!",
             color=0xf39c12)
-        await ctx.respond(embed=embed_adding, ephemeral=True)
+        await ctx.respond(embed=embed_adding)
 
         if region not in valid_regions:
-            await ctx.respond(embed=invalid_region, ephemeral=True)
+            await ctx.respond(embed=invalid_region)
             return
 
         cookie_arg = pdc or None
@@ -130,7 +130,7 @@ class PSNCog(commands.Cog):
                                         color=0xe74c3c)
             embed_error.set_footer(
                 text="💡 Make sure your token and product ID are correct!")
-            await ctx.respond(embed=embed_error, ephemeral=True)
+            await ctx.respond(embed=embed_error)
             return
 
         embed_success = discord.Embed(
@@ -138,7 +138,7 @@ class PSNCog(commands.Cog):
             description=f"🛒 **{product_id}** has been added to your cart!",
             color=0x27ae60)
         embed_success.set_footer(text="🎮 Check your PlayStation Store cart!")
-        await ctx.respond(embed=embed_success, ephemeral=True)
+        await ctx.respond(embed=embed_success)
 
     @psn_group.command(
         description="🗑️ Removes the avatar you input from your cart.")
@@ -155,10 +155,10 @@ class PSNCog(commands.Cog):
             title="🗑️ Removing from Cart...",
             description="⏳ Please wait while we remove your avatar from cart!",
             color=0xf39c12)
-        await ctx.respond(embed=embed_removing, ephemeral=True)
+        await ctx.respond(embed=embed_removing)
 
         if region not in valid_regions:
-            await ctx.respond(embed=invalid_region, ephemeral=True)
+            await ctx.respond(embed=invalid_region)
             return
 
         cookie_arg = pdc or None
@@ -177,7 +177,7 @@ class PSNCog(commands.Cog):
                                         color=0xe74c3c)
             embed_error.set_footer(
                 text="💡 Make sure the item is in your cart!")
-            await ctx.respond(embed=embed_error, ephemeral=True)
+            await ctx.respond(embed=embed_error)
             return
 
         embed_success = discord.Embed(
@@ -186,7 +186,7 @@ class PSNCog(commands.Cog):
             color=0x27ae60)
         embed_success.set_footer(
             text="🎮 Item removed from PlayStation Store cart!")
-        await ctx.respond(embed=embed_success, ephemeral=True)
+        await ctx.respond(embed=embed_success)
 
     @psn_group.command(
         description="🆔 Gets the account ID from a PSN username.")

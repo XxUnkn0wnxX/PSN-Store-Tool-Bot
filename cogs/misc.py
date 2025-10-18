@@ -50,11 +50,11 @@ class Misc(commands.Cog):
 
     @discord.slash_command(description="📚 Shows how to use the bot.")
     async def tutorial(self, ctx: discord.ApplicationContext) -> None:
-        await ctx.respond(embed=tutorialemb, ephemeral=True)
+        await ctx.respond(embed=tutorialemb)
 
     @discord.slash_command(description="👥 Shows credits and bot information.")
     async def credits(self, ctx: discord.ApplicationContext) -> None:
-        await ctx.respond(embed=creditsemb, ephemeral=True)
+        await ctx.respond(embed=creditsemb)
 
 def setup(bot: commands.Bot) -> None:
     bot.add_cog(Misc(bot))
