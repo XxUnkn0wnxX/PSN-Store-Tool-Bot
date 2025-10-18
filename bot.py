@@ -36,6 +36,8 @@ activity = discord.Activity(
 
 # Names of your cog modules (with or without a cogs/ package)
 COGS = ["misc", "psn", "psprices"]
+AUTO_SYNC_DEBUG_GUILD = True
+SYNC_TIMEOUT_SECS = 20
 APPLICATION_ID: str | None = None
 _banner_printed = False
 _cogs_loaded = False
@@ -52,6 +54,8 @@ bot = commands.Bot(
     activity=activity,
     intents=intents,
 )
+if AUTO_SYNC_DEBUG_GUILD:
+    bot.debug_guilds = [GUILD_ID]
 
 
 async def load_extensions() -> None:
@@ -186,31 +190,35 @@ async def on_ready() -> None:
     )
     available = [c.qualified_name for c in bot.application_commands]
 
-    if _need_sync_global or _force_sync:
-        start = time.perf_counter()
-        print("[sync] Syncing global commands…", flush=True)
-        try:
-            await bot.sync_commands()
-            duration = time.perf_counter() - start
-            print(f"[sync] Syncing global commands… (completed in {duration:.2f}s)", flush=True)
-        except Exception as exc:
-            print(f"[sync] Global sync failed: {exc}")
-            raise
+    if AUTO_SYNC_DEBUG_GUILD:
+        print("[sync] Using debug_guilds auto-sync; skipping manual sync.", flush=True)
     else:
-        print("[sync] Global commands already up to date; skipping sync.", flush=True)
+        async def _do_sync() -> None:
+            if _need_sync_global or _force_sync:
+                start = time.perf_counter()
+                print("[sync] Syncing global commands…", flush=True)
+                await bot.sync_commands()
+                duration = time.perf_counter() - start
+                print(f"[sync] Syncing global commands… (completed in {duration:.2f}s)", flush=True)
+            else:
+                print("[sync] Global commands already up to date; skipping sync.", flush=True)
 
-    if _need_sync_guild or _force_sync:
-        start = time.perf_counter()
-        print("[sync] Syncing guild commands…", flush=True)
+            if _need_sync_guild or _force_sync:
+                start = time.perf_counter()
+                print("[sync] Syncing guild commands…", flush=True)
+                await bot.sync_commands(guild_ids=[GUILD_ID])
+                duration = time.perf_counter() - start
+                print(f"[sync] Syncing guild commands… (completed in {duration:.2f}s)", flush=True)
+            else:
+                print("[sync] Guild commands already up to date; skipping sync.", flush=True)
+
         try:
-            await bot.sync_commands(guild_ids=[GUILD_ID])
-            duration = time.perf_counter() - start
-            print(f"[sync] Syncing guild commands… (completed in {duration:.2f}s)", flush=True)
-        except Exception as exc:
-            print(f"[sync] Guild sync failed: {exc}")
-            raise
-    else:
-        print("[sync] Guild commands already up to date; skipping sync.", flush=True)
+            await asyncio.wait_for(_do_sync(), timeout=SYNC_TIMEOUT_SECS)
+        except asyncio.TimeoutError:
+            print(
+                f"[sync] Manual sync timed out after {SYNC_TIMEOUT_SECS}s — continuing; verification will confirm state.",
+                flush=True,
+            )
 
     success = await wait_for_command_sets(_bot_token, GUILD_ID, _expected_global, _expected_guild)
     if success:
@@ -251,15 +259,22 @@ async def on_message(message: discord.Message) -> None:
 
 async def prepare_expected_commands() -> tuple[set[str], set[str]]:
     global _expected_global, _expected_guild
-    global_commands = {
-        cmd.name for cmd in bot.application_commands if not getattr(cmd, "guild_ids", None)
-    }
-    guild_commands = {
-        cmd.name for cmd in bot.application_commands if getattr(cmd, "guild_ids", None)
-    }
-    _expected_global = global_commands
-    _expected_guild = guild_commands
-    return global_commands, guild_commands
+    all_cmd_names = {cmd.name for cmd in bot.application_commands}
+
+    if AUTO_SYNC_DEBUG_GUILD:
+        _expected_global = set()
+        _expected_guild = set(all_cmd_names)
+    else:
+        global_commands = {
+            cmd.name for cmd in bot.application_commands if not getattr(cmd, "guild_ids", None)
+        }
+        guild_commands = {
+            cmd.name for cmd in bot.application_commands if getattr(cmd, "guild_ids", None)
+        }
+        _expected_global = global_commands
+        _expected_guild = guild_commands
+
+    return _expected_global, _expected_guild
 
 
 async def main(args: argparse.Namespace) -> None:
@@ -292,21 +307,30 @@ async def main(args: argparse.Namespace) -> None:
     _need_sync_global = _force_sync or bool(missing_global)
     _need_sync_guild = _force_sync or bool(missing_guild)
 
-    if _need_sync_global:
-        if missing_global:
-            print(f"[sync] Global commands missing: {sorted(missing_global)}")
-        else:
-            print("[sync] Global commands will be force-synced.")
-    else:
-        print("[sync] Global commands already present; will skip sync unless forced.")
-
-    if _need_sync_guild:
+    if AUTO_SYNC_DEBUG_GUILD and not _force_sync:
+        print("[sync] Auto guild sync enabled; relying on Pycord debug_guilds.")
         if missing_guild:
-            print(f"[sync] Guild commands missing: {sorted(missing_guild)}")
-        else:
-            print("[sync] Guild commands will be force-synced.")
+            print(f"[sync] Waiting for guild commands: {sorted(missing_guild)}")
+        if missing_global:
+            print(f"[sync] Unexpected global commands missing: {sorted(missing_global)}")
+        _need_sync_global = False
+        _need_sync_guild = False
     else:
-        print("[sync] Guild commands already present; will skip sync unless forced.")
+        if _need_sync_global:
+            if missing_global:
+                print(f"[sync] Global commands missing: {sorted(missing_global)}")
+            else:
+                print("[sync] Global commands will be force-synced.")
+        else:
+            print("[sync] Global commands already present; will skip sync unless forced.")
+
+        if _need_sync_guild:
+            if missing_guild:
+                print(f"[sync] Guild commands missing: {sorted(missing_guild)}")
+            else:
+                print("[sync] Guild commands will be force-synced.")
+        else:
+            print("[sync] Guild commands already present; will skip sync unless forced.")
 
     print("Starting bot...")
     try:
