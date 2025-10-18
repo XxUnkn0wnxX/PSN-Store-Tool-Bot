@@ -50,10 +50,16 @@ pip install -r requirements.txt
 
 ## ⚙️ Setup `.env`
 
-Create a `.env` file in the root directory with:
+Copy `.env.template` to `.env` and fill in your secrets:
 
 ```
-DISCORD_TOKEN=your_discord_bot_token
+cp .env.template .env
+```
+
+Then edit `.env` with your credentials:
+
+```
+TOKEN=your_discord_bot_token
 NPSSO=your_64_char_npsso_token
 ```
 
