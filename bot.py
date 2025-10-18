@@ -190,7 +190,7 @@ async def on_ready() -> None:
     )
     available = [c.qualified_name for c in bot.application_commands]
 
-    if AUTO_SYNC_DEBUG_GUILD:
+    if AUTO_SYNC_DEBUG_GUILD and not _force_sync:
         print("[sync] Using debug_guilds auto-sync; skipping manual sync.", flush=True)
     else:
         async def _do_sync() -> None:
