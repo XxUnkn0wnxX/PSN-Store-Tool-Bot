@@ -34,7 +34,7 @@ invalid_region = discord.Embed(
     color=0xe74c3c)
 
 npsso_desc = "NPSSO token (leave blank to use default)"
-token_desc = "pdccws_p cookie (leave blank to use default)"
+token_desc = "PDC cookie (leave blank to use default)"
 id_desc = "ID from psprices product_id command"
 region_desc = "For example 'en-US', check 'playstation.com'"
 
@@ -51,7 +51,7 @@ class PSNCog(commands.Cog):
     async def check_avatar(
         self,
         ctx: discord.ApplicationContext,
-        pdccws_p: Option(str, description=token_desc, required=False),  # type: ignore
+        pdc: Option(str, description=token_desc, required=False),  # type: ignore
         npsso: Option(str, description=npsso_desc, required=False),  # type: ignore
         product_id: Option(str, description=id_desc),  # type: ignore
         region: Option(str, description=region_desc)  # type: ignore
@@ -67,7 +67,7 @@ class PSNCog(commands.Cog):
             await ctx.respond(embed=invalid_region, ephemeral=True)
             return
 
-        cookie_arg = pdccws_p or None
+        cookie_arg = pdc or None
         npsso_arg = npsso or None
 
         request = PSNRequest(region=region,
@@ -98,7 +98,7 @@ class PSNCog(commands.Cog):
     async def add_avatar(
         self,
         ctx: discord.ApplicationContext,
-        pdccws_p: Option(str, description=token_desc, required=False),  # type: ignore
+        pdc: Option(str, description=token_desc, required=False),  # type: ignore
         npsso: Option(str, description=npsso_desc, required=False),  # type: ignore
         product_id: Option(str, description=id_desc),  # type: ignore
         region: Option(str, description=region_desc)  # type: ignore
@@ -114,7 +114,7 @@ class PSNCog(commands.Cog):
             await ctx.respond(embed=invalid_region, ephemeral=True)
             return
 
-        cookie_arg = pdccws_p or None
+        cookie_arg = pdc or None
         npsso_arg = npsso or None
 
         request = PSNRequest(region=region,
@@ -145,7 +145,7 @@ class PSNCog(commands.Cog):
     async def remove_avatar(
         self,
         ctx: discord.ApplicationContext,
-        pdccws_p: Option(str, description=token_desc, required=False),  # type: ignore
+        pdc: Option(str, description=token_desc, required=False),  # type: ignore
         npsso: Option(str, description=npsso_desc, required=False),  # type: ignore
         product_id: Option(str, description=id_desc),  # type: ignore
         region: Option(str, description=region_desc)  # type: ignore
@@ -161,7 +161,7 @@ class PSNCog(commands.Cog):
             await ctx.respond(embed=invalid_region, ephemeral=True)
             return
 
-        cookie_arg = pdccws_p or None
+        cookie_arg = pdc or None
         npsso_arg = npsso or None
 
         request = PSNRequest(region=region,
