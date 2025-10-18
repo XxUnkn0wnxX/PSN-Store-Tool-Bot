@@ -16,7 +16,8 @@ class PSPricesCog(commands.Cog):
               ctx: discord.ApplicationContext, 
               url: Option(str, description="🔗 Link to psprices avatar page") # type: ignore
             ) -> None:
-        
+        # Command is intentionally disabled: PSPrices locked the data behind Cloudflare/paywall,
+        # so automated extraction no longer works reliably.
         embed_processing = discord.Embed(
             title="🔗 Processing URL...",
             description="⏳ Extracting product ID from PSPrices link...",
