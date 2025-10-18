@@ -134,16 +134,18 @@ class PSNCog(commands.Cog):
             description_lines.insert(1, "Detected issue with the NPSSO token.")
 
         if need_cookie:
-            if cookie_override:
-                description_lines.append("• Refresh the `pdccws_p` cookie you supplied with this command.")
-            else:
-                description_lines.append("• Refresh the `PDC` value stored in your `.env` file.")
+            description_lines.append(
+                "• Refresh the `pdccws_p` cookie you supplied with this command."
+                if cookie_override
+                else "• Refresh the `PDC` value stored in your `.env` file."
+            )
 
         if need_npsso:
-            if npsso_override:
-                description_lines.append("• Refresh the NPSSO token you supplied with this command.")
-            else:
-                description_lines.append("• Refresh the `NPSSO` value stored in your `.env` file.")
+            description_lines.append(
+                "• Refresh the NPSSO token you supplied with this command."
+                if npsso_override
+                else "• Refresh the `NPSSO` value stored in your `.env` file."
+            )
 
         description_lines.append("After updating, restart the bot or re-run the command with the new values.")
 
@@ -394,34 +396,16 @@ class PSNCog(commands.Cog):
         embed_success.set_footer(text="✅ Account ID retrieved successfully!")
         await self._send_embed(ctx, embed_success, followup=self._is_app_context(ctx))
 
-    @commands.hybrid_group(
-        name="psn",
-        description="PlayStation Store avatar utilities.",
-        invoke_without_command=True,
-    )
-    async def psn(self, ctx: commands.Context) -> None:
-        if not await self._ensure_allowed_guild(ctx):
-            return
+    psn_slash = discord.SlashCommandGroup("psn")
 
-        if ctx.invoked_subcommand is None:
-            embed = discord.Embed(
-                title="🎮 PSN Commands",
-                description=(
-                    "Use `/psn check`, `/psn add`, `/psn remove`, or `/psn account`.\n"
-                    "Prefix usage: `$psn <subcommand>` or legacy aliases like `$check_avatar`."
-                ),
-                color=0x3498db,
-            )
-            await self._send_embed(ctx, embed)
-
-    @psn.command(name="check", description="🔍 Checks an avatar for you.")
-    async def psn_check(
+    @psn_slash.command(name="check", description="🔍 Checks an avatar for you.")
+    async def psn_slash_check(
         self,
-        ctx: commands.Context,
-        product_id: str = commands.Param(description=id_desc),
-        region: str = commands.Param(description=region_desc),
-        pdc: str | None = commands.Param(default=None, description=token_desc, name="pdc"),
-        npsso: str | None = commands.Param(default=None, description=npsso_desc, name="npsso"),
+        ctx: discord.ApplicationContext,
+        product_id: discord.Option(str, description=id_desc),
+        region: discord.Option(str, description=region_desc),
+        pdc: discord.Option(str, description=token_desc, default=None),
+        npsso: discord.Option(str, description=npsso_desc, default=None),
     ) -> None:
         await self._handle_check(
             ctx,
@@ -433,14 +417,14 @@ class PSNCog(commands.Cog):
             npsso_override=npsso is not None,
         )
 
-    @psn.command(name="add", description="🛒 Adds the avatar you input into your cart.")
-    async def psn_add(
+    @psn_slash.command(name="add", description="🛒 Adds the avatar you input into your cart.")
+    async def psn_slash_add(
         self,
-        ctx: commands.Context,
-        product_id: str = commands.Param(description=id_desc),
-        region: str = commands.Param(description=region_desc),
-        pdc: str | None = commands.Param(default=None, description=token_desc, name="pdc"),
-        npsso: str | None = commands.Param(default=None, description=npsso_desc, name="npsso"),
+        ctx: discord.ApplicationContext,
+        product_id: discord.Option(str, description=id_desc),
+        region: discord.Option(str, description=region_desc),
+        pdc: discord.Option(str, description=token_desc, default=None),
+        npsso: discord.Option(str, description=npsso_desc, default=None),
     ) -> None:
         await self._handle_add_or_remove(
             ctx,
@@ -453,14 +437,14 @@ class PSNCog(commands.Cog):
             operation="add",
         )
 
-    @psn.command(name="remove", description="🗑️ Removes the avatar you input from your cart.")
-    async def psn_remove(
+    @psn_slash.command(name="remove", description="🗑️ Removes the avatar you input from your cart.")
+    async def psn_slash_remove(
         self,
-        ctx: commands.Context,
-        product_id: str = commands.Param(description=id_desc),
-        region: str = commands.Param(description=region_desc),
-        pdc: str | None = commands.Param(default=None, description=token_desc, name="pdc"),
-        npsso: str | None = commands.Param(default=None, description=npsso_desc, name="npsso"),
+        ctx: discord.ApplicationContext,
+        product_id: discord.Option(str, description=id_desc),
+        region: discord.Option(str, description=region_desc),
+        pdc: discord.Option(str, description=token_desc, default=None),
+        npsso: discord.Option(str, description=npsso_desc, default=None),
     ) -> None:
         await self._handle_add_or_remove(
             ctx,
@@ -473,12 +457,67 @@ class PSNCog(commands.Cog):
             operation="remove",
         )
 
-    @psn.command(name="account", description="🆔 Gets the account ID from a PSN username.")
-    async def psn_account(
+    @psn_slash.command(name="account", description="🆔 Gets the account ID from a PSN username.")
+    async def psn_slash_account(
         self,
-        ctx: commands.Context,
-        username: str = commands.Param(description="PSN username to resolve."),
+        ctx: discord.ApplicationContext,
+        username: discord.Option(str, description="PSN username to resolve."),
     ) -> None:
+        await self._handle_account(ctx, username)
+
+    @commands.group(name="psn", invoke_without_command=True)
+    async def psn_prefix(self, ctx: commands.Context) -> None:
+        if not await self._ensure_allowed_guild(ctx):
+            return
+
+        if ctx.invoked_subcommand is None:
+            embed = discord.Embed(
+                title="🎮 PSN Commands",
+                description="Use `/psn check`, `/psn add`, `/psn remove`, or `/psn account`.\nPrefix usage: `$psn <subcommand>` or legacy aliases like `$check_avatar`.",
+                color=0x3498db,
+            )
+            await self._send_embed(ctx, embed)
+
+    @psn_prefix.command(name="check")
+    async def psn_prefix_check(self, ctx: commands.Context, product_id: str, region: str) -> None:
+        await self._handle_check(
+            ctx,
+            product_id=product_id,
+            region=region,
+            cookie_arg=None,
+            npsso_arg=None,
+            cookie_override=False,
+            npsso_override=False,
+        )
+
+    @psn_prefix.command(name="add")
+    async def psn_prefix_add(self, ctx: commands.Context, product_id: str, region: str) -> None:
+        await self._handle_add_or_remove(
+            ctx,
+            product_id=product_id,
+            region=region,
+            cookie_arg=None,
+            npsso_arg=None,
+            cookie_override=False,
+            npsso_override=False,
+            operation="add",
+        )
+
+    @psn_prefix.command(name="remove")
+    async def psn_prefix_remove(self, ctx: commands.Context, product_id: str, region: str) -> None:
+        await self._handle_add_or_remove(
+            ctx,
+            product_id=product_id,
+            region=region,
+            cookie_arg=None,
+            npsso_arg=None,
+            cookie_override=False,
+            npsso_override=False,
+            operation="remove",
+        )
+
+    @psn_prefix.command(name="account")
+    async def psn_prefix_account(self, ctx: commands.Context, username: str) -> None:
         await self._handle_account(ctx, username)
 
     @commands.command(name="check_avatar")
@@ -522,6 +561,7 @@ class PSNCog(commands.Cog):
     @commands.command(name="account_id")
     async def account_id_prefix(self, ctx: commands.Context, username: str) -> None:
         await self._handle_account(ctx, username)
+
     async def _ensure_allowed_guild(self, ctx) -> bool:
         if not self.allowed_guild_id:
             return True
@@ -540,4 +580,9 @@ class PSNCog(commands.Cog):
 
 
 def setup(bot: commands.Bot) -> None:
-    bot.add_cog(PSNCog(os.getenv("NPSSO"), bot, os.getenv("PDC"), os.getenv("GUILD_ID")))
+    cog = PSNCog(os.getenv("NPSSO"), bot, os.getenv("PDC"), os.getenv("GUILD_ID"))
+    bot.add_cog(cog)
+    try:
+        bot.add_application_command(cog.psn_slash)
+    except discord.errors.CommandAlreadyRegistered:
+        pass
