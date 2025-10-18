@@ -34,6 +34,41 @@ creditsemb = discord.Embed(
 )
 creditsemb.set_footer(text="🙏 Thank you for using PSNToolBot!")
 
+help_embed_description = (
+    "Slash commands are the recommended way to run the bot, but every feature also has a "
+    "matching prefix command for quick text usage. Here's a quick reference:"
+)
+
+
+def build_help_embed(prefix: str) -> discord.Embed:
+    embed = discord.Embed(
+        title="🆘 **Command Reference**",
+        description=help_embed_description,
+        color=0x1abc9c,
+    )
+    embed.add_field(
+        name="🎮 PSN Avatar Tools",
+        value=(
+            f"• `/psn check` → `{prefix}check_avatar <product_id> <region>`\n"
+            f"• `/psn add` → `{prefix}add_avatar <product_id> <region>`\n"
+            f"• `/psn remove` → `{prefix}remove_avatar <product_id> <region>`\n"
+            f"• `/psn account` → `{prefix}account_id`\n"
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name="🛠️ Utilities",
+        value=(
+            f"• `/ping` → `{prefix}ping`\n"
+            f"• `/tutorial` → `{prefix}tutorial`\n"
+            f"• `/credits` → `{prefix}credits`\n"
+        ),
+        inline=False,
+    )
+    embed.set_footer(text="Tip: Prefix defaults to '$' but can be configured via the PREFIX env var.")
+    return embed
+
+
 class Misc(commands.Cog):
     def __init__(self, bot: commands.Bot, allowed_guild_id: str | None = None) -> None:
         self.bot = bot
@@ -88,6 +123,20 @@ class Misc(commands.Cog):
         if not await self._ensure_allowed_guild(ctx):
             return
         await ctx.send(embed=creditsemb)
+
+    @discord.slash_command(description="🆘 Shows slash commands and their prefix equivalents.")
+    async def help(self, ctx: discord.ApplicationContext) -> None:
+        if not await self._ensure_allowed_guild(ctx):
+            return
+        prefix = os.getenv("PREFIX", "$")
+        await ctx.respond(embed=build_help_embed(prefix))
+
+    @commands.command(name="help")
+    async def help_command(self, ctx: commands.Context) -> None:
+        if not await self._ensure_allowed_guild(ctx):
+            return
+        prefix = os.getenv("PREFIX", "$")
+        await ctx.send(embed=build_help_embed(prefix))
 
     async def _ensure_allowed_guild(self, ctx) -> bool:
         if not self.allowed_guild_id:

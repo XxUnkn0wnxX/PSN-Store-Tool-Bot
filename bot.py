@@ -58,6 +58,7 @@ bot = commands.Bot(
     activity=activity,
     intents=intents,
 )
+bot.help_command = None
 if AUTO_SYNC_DEBUG_GUILD:
     bot.debug_guilds = [GUILD_ID]
 

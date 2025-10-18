@@ -63,6 +63,13 @@ COUNTRY_OVERRIDES = {
 }
 
 
+def mask_value(value: str, visible: int = 4) -> str:
+    if not value:
+        return ""
+    if len(value) <= visible * 2:
+        return value[:visible] + "…" if len(value) > visible else "***"
+    return f"{value[:visible]}…{value[-visible:]}"
+
 def normalize_region_input(value: str) -> str:
     candidate = value.strip()
     if not candidate:
@@ -135,7 +142,7 @@ class PSNCog(commands.Cog):
                              npsso=npsso_arg)
 
         if cookie_arg:
-            print(f"[psn] Using custom PDC from command for {ctx.author}: {cookie_arg}")
+            print(f"[psn] Using custom PDC from command for {ctx.author}: {mask_value(cookie_arg)}")
         if npsso_arg:
             masked = npsso_arg[:4] + "…" + npsso_arg[-4:] if len(npsso_arg) > 8 else "***"
             print(f"[psn] Using custom NPSSO from command for {ctx.author}: {masked}")
@@ -223,7 +230,7 @@ class PSNCog(commands.Cog):
                              npsso=npsso_arg)
 
         if cookie_arg:
-            print(f"[psn] Using custom PDC from command for {ctx.author}: {cookie_arg}")
+            print(f"[psn] Using custom PDC from command for {ctx.author}: {mask_value(cookie_arg)}")
         if npsso_arg:
             masked = npsso_arg[:4] + "…" + npsso_arg[-4:] if len(npsso_arg) > 8 else "***"
             print(f"[psn] Using custom NPSSO from command for {ctx.author}: {masked}")
@@ -310,7 +317,7 @@ class PSNCog(commands.Cog):
                              npsso=npsso_arg)
 
         if cookie_arg:
-            print(f"[psn] Using custom PDC from command for {ctx.author}: {cookie_arg}")
+            print(f"[psn] Using custom PDC from command for {ctx.author}: {mask_value(cookie_arg)}")
         if npsso_arg:
             masked = npsso_arg[:4] + "…" + npsso_arg[-4:] if len(npsso_arg) > 8 else "***"
             print(f"[psn] Using custom NPSSO from command for {ctx.author}: {masked}")
