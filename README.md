@@ -20,6 +20,7 @@ Before running the bot, you'll need:
 
 - ✅ A valid **NPSSO token** (for PSN API access)
 - ✅ Your **Discord bot token**
+- ✅ Your **Discord server id** (sync up slash commands)
 
 ---
 
@@ -86,7 +87,7 @@ In the [Discord Developer Portal](https://discord.com/developers/applications):
 ## ▶️ Run the Bot
 
 ```bash
-python bot.py
+python3 bot.py
 ```
 
 Your bot is now live and ready to add avatars or fetch PSN IDs! 🎉
@@ -109,3 +110,4 @@ Open an [issue](https://github.com/yourusername/PSNToolBot/issues) or submit a p
 ---
 
 <p align="center"><b>Built with 💻, ☕, and 🎮 by 𐌔𐌉𐌂𐌊.dll</b></p>
+
