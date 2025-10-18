@@ -37,6 +37,13 @@ class PSN:
     def validate_request(req: PSNRequest):
         if req.product_id.count("-") != 2:
             raise APIError("Invalid product ID!")
+    
+    @staticmethod
+    def _format_region_path(region: str) -> str:
+        lang, sep, country = region.partition("-")
+        if sep:
+            return f"{country}/{lang}"
+        return region.replace("-", "/")
         
     def get_error_cause(self) -> str:
         return self.res.get("cause")
@@ -50,9 +57,10 @@ class PSN:
         return None
 
     def request_builder(self, request: PSNRequest, operation: PSNOperation) -> None:
+        region_path = self._format_region_path(request.region)
         match operation:
             case PSNOperation.CHECK_AVATAR:
-                self.url = f"https://store.playstation.com/store/api/chihiro/00_09_000/container/{request.region.replace('-', '/')}/19/{request.product_id}/"
+                self.url = f"https://store.playstation.com/store/api/chihiro/00_09_000/container/{region_path}/19/{request.product_id}/"
                 self.headers = {
                 "Origin": "https://checkout.playstation.com",
                 "content-type": "application/json",
@@ -122,7 +130,8 @@ class PSN:
         if obtain_skuget_only:
             return sku_get
         
-        picture_avatar = f"https://store.playstation.com/store/api/chihiro/00_09_000/container/{request.region.replace('-', '/')}/19/{request.product_id}/image"
+        region_path = self._format_region_path(request.region)
+        picture_avatar = f"https://store.playstation.com/store/api/chihiro/00_09_000/container/{region_path}/19/{request.product_id}/image"
         return picture_avatar
 
     async def add_to_cart(self, request: PSNRequest) -> None:
