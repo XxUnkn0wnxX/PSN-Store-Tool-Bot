@@ -161,6 +161,14 @@ class PSNCog(commands.Cog):
     def _is_app_context(self, ctx) -> bool:
         return isinstance(ctx, discord.ApplicationContext)
 
+    @staticmethod
+    def _prefix_has_extra_args(ctx: commands.Context) -> bool:
+        view = getattr(ctx, "view", None)
+        if view is None or not hasattr(view, "buffer"):
+            return False
+        remaining = view.buffer[view.index :].strip()
+        return bool(remaining)
+
     async def _send_embed(self, ctx, embed: discord.Embed, *, followup: bool = False) -> None:
         if self._is_app_context(ctx):
             app_ctx = ctx  # type: ignore[assignment]
@@ -476,13 +484,26 @@ class PSNCog(commands.Cog):
         if ctx.invoked_subcommand is None:
             embed = discord.Embed(
                 title="🎮 PSN Commands",
-                description="Use `/psn check`, `/psn add`, `/psn remove`, or `/psn account`.\nPrefix usage: `$psn <subcommand>` or legacy aliases like `$check_avatar`.",
+                description=(
+                    "Use `/psn check`, `/psn add`, `/psn remove`, or `/psn account`.\n"
+                    "Prefix usage: `$psn <subcommand>` or legacy aliases like `$check_avatar`."
+                ),
                 color=0x3498db,
             )
             await self._send_embed(ctx, embed)
 
     @psn_prefix.command(name="check")
     async def psn_prefix_check(self, ctx: commands.Context, product_id: str, region: str) -> None:
+        if self._prefix_has_extra_args(ctx):
+            await self._send_embed(
+                ctx,
+                discord.Embed(
+                    title="⚠️ Overrides Not Available",
+                    description="Prefix commands only accept `product_id` and `region`. Use `/psn check` if you need to supply NPSSO or PDC overrides.",
+                    color=0xf1c40f,
+                ),
+            )
+            return
         await self._handle_check(
             ctx,
             product_id=product_id,
@@ -495,6 +516,16 @@ class PSNCog(commands.Cog):
 
     @psn_prefix.command(name="add")
     async def psn_prefix_add(self, ctx: commands.Context, product_id: str, region: str) -> None:
+        if self._prefix_has_extra_args(ctx):
+            await self._send_embed(
+                ctx,
+                discord.Embed(
+                    title="⚠️ Overrides Not Available",
+                    description="Prefix commands only accept `product_id` and `region`. Use `/psn add` if you need to supply NPSSO or PDC overrides.",
+                    color=0xf1c40f,
+                ),
+            )
+            return
         await self._handle_add_or_remove(
             ctx,
             product_id=product_id,
@@ -508,6 +539,16 @@ class PSNCog(commands.Cog):
 
     @psn_prefix.command(name="remove")
     async def psn_prefix_remove(self, ctx: commands.Context, product_id: str, region: str) -> None:
+        if self._prefix_has_extra_args(ctx):
+            await self._send_embed(
+                ctx,
+                discord.Embed(
+                    title="⚠️ Overrides Not Available",
+                    description="Prefix commands only accept `product_id` and `region`. Use `/psn remove` if you need to supply NPSSO or PDC overrides.",
+                    color=0xf1c40f,
+                ),
+            )
+            return
         await self._handle_add_or_remove(
             ctx,
             product_id=product_id,
@@ -521,10 +562,30 @@ class PSNCog(commands.Cog):
 
     @psn_prefix.command(name="account")
     async def psn_prefix_account(self, ctx: commands.Context, username: str) -> None:
+        if self._prefix_has_extra_args(ctx):
+            await self._send_embed(
+                ctx,
+                discord.Embed(
+                    title="⚠️ Extra Arguments Ignored",
+                    description="Prefix account lookup only needs the username. Remove additional arguments or use `/psn account`.",
+                    color=0xf1c40f,
+                ),
+            )
+            return
         await self._handle_account(ctx, username)
 
     @commands.command(name="check_avatar")
     async def check_avatar_prefix(self, ctx: commands.Context, product_id: str, region: str) -> None:
+        if self._prefix_has_extra_args(ctx):
+            await self._send_embed(
+                ctx,
+                discord.Embed(
+                    title="⚠️ Overrides Not Available",
+                    description="Prefix commands only accept `product_id` and `region`. Use `/psn check` if you need to supply NPSSO or PDC overrides.",
+                    color=0xf1c40f,
+                ),
+            )
+            return
         await self._handle_check(
             ctx,
             product_id=product_id,
@@ -537,6 +598,16 @@ class PSNCog(commands.Cog):
 
     @commands.command(name="add_avatar")
     async def add_avatar_prefix(self, ctx: commands.Context, product_id: str, region: str) -> None:
+        if self._prefix_has_extra_args(ctx):
+            await self._send_embed(
+                ctx,
+                discord.Embed(
+                    title="⚠️ Overrides Not Available",
+                    description="Prefix commands only accept `product_id` and `region`. Use `/psn add` if you need to supply NPSSO or PDC overrides.",
+                    color=0xf1c40f,
+                ),
+            )
+            return
         await self._handle_add_or_remove(
             ctx,
             product_id=product_id,
@@ -550,6 +621,16 @@ class PSNCog(commands.Cog):
 
     @commands.command(name="remove_avatar")
     async def remove_avatar_prefix(self, ctx: commands.Context, product_id: str, region: str) -> None:
+        if self._prefix_has_extra_args(ctx):
+            await self._send_embed(
+                ctx,
+                discord.Embed(
+                    title="⚠️ Overrides Not Available",
+                    description="Prefix commands only accept `product_id` and `region`. Use `/psn remove` if you need to supply NPSSO or PDC overrides.",
+                    color=0xf1c40f,
+                ),
+            )
+            return
         await self._handle_add_or_remove(
             ctx,
             product_id=product_id,
@@ -563,6 +644,16 @@ class PSNCog(commands.Cog):
 
     @commands.command(name="account_id")
     async def account_id_prefix(self, ctx: commands.Context, username: str) -> None:
+        if self._prefix_has_extra_args(ctx):
+            await self._send_embed(
+                ctx,
+                discord.Embed(
+                    title="⚠️ Extra Arguments Ignored",
+                    description="Prefix account lookup only needs the username. Remove additional arguments or use `/psn account`.",
+                    color=0xf1c40f,
+                ),
+            )
+            return
         await self._handle_account(ctx, username)
 
     async def _ensure_allowed_guild(self, ctx) -> bool:
