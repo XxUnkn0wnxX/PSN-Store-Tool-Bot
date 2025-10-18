@@ -39,7 +39,7 @@ activity = discord.Activity(
 )
 
 # Names of your cog modules (with or without a cogs/ package)
-COGS = ["misc", "psn", "psprices"]
+COGS = ["misc", "psn"]
 AUTO_SYNC_DEBUG_GUILD = True
 SYNC_TIMEOUT_SECS = 20
 APPLICATION_ID: str | None = None

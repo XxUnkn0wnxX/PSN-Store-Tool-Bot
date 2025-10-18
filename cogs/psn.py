@@ -582,6 +582,9 @@ class PSNCog(commands.Cog):
 def setup(bot: commands.Bot) -> None:
     cog = PSNCog(os.getenv("NPSSO"), bot, os.getenv("PDC"), os.getenv("GUILD_ID"))
     bot.add_cog(cog)
+    existing = bot.get_application_command("psn")
+    if existing is not None:
+        bot.remove_application_command(existing)
     try:
         bot.add_application_command(cog.psn_slash)
     except discord.errors.CommandAlreadyRegistered:
