@@ -176,7 +176,7 @@ async def on_ready() -> None:
     if _banner_printed:
         return
     print(f"[lib] Pycord version: {discord.__version__}")
-    print(f"[lib] module path  : {discord.__file__}")
+    print(f"[lib] module path: {discord.__file__}")
     print(f"[ready] Logged in as {bot.user} ({bot.user.id})")
     invite_url = (
         f"https://discord.com/api/oauth2/authorize?"
@@ -211,16 +211,18 @@ async def on_ready() -> None:
         print("[sync] Command verification timed out; check Discord developer portal.", flush=True)
 
     available = [c.qualified_name for c in bot.application_commands]
-    print(f"[ready] Commands   : {available}", flush=True)
-    print(f"""
+    print(f"[ready] Commands: {available}", flush=True)
+    print(
+        """
 ╔═══════════════════════════════════════════════════════════════════════════════════════╗
 ║                                  🎮 PSNTOOLBOT 🎮                                     ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════╣
 ║  🤖 PSNToolBot is ready!                                                              ║
-║  🔗 Invite: {invite_url}
 ║  🎮 Original creator: https://github.com/groriz11                                     ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════╝
-    """, flush=True)
+    """,
+        flush=True,
+    )
     _banner_printed = True
 
 
