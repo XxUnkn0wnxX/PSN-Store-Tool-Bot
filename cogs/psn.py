@@ -33,6 +33,7 @@ invalid_region = discord.Embed(
     "🌍 Please use a valid region code (e.g., 'en-US', 'en-GB', 'fr-FR')",
     color=0xe74c3c)
 
+npsso_desc = "NPSSO token (leave blank to use default)"
 token_desc = "pdccws_p cookie (leave blank to use default)"
 id_desc = "ID from psprices product_id command"
 region_desc = "For example 'en-US', check 'playstation.com'"
@@ -51,6 +52,7 @@ class PSNCog(commands.Cog):
         self,
         ctx: discord.ApplicationContext,
         pdccws_p: Option(str, description=token_desc, required=False),  # type: ignore
+        npsso: Option(str, description=npsso_desc, required=False),  # type: ignore
         product_id: Option(str, description=id_desc),  # type: ignore
         region: Option(str, description=region_desc)  # type: ignore
     ) -> None:
@@ -66,10 +68,12 @@ class PSNCog(commands.Cog):
             return
 
         cookie_arg = pdccws_p or None
+        npsso_arg = npsso or None
 
-        request = PSNRequest(pdccws_p=cookie_arg,
-                             region=region,
-                             product_id=product_id)
+        request = PSNRequest(region=region,
+                             product_id=product_id,
+                             pdccws_p=cookie_arg,
+                             npsso=npsso_arg)
 
         try:
             avatar_url = await self.api.check_avatar(request)
@@ -95,6 +99,7 @@ class PSNCog(commands.Cog):
         self,
         ctx: discord.ApplicationContext,
         pdccws_p: Option(str, description=token_desc, required=False),  # type: ignore
+        npsso: Option(str, description=npsso_desc, required=False),  # type: ignore
         product_id: Option(str, description=id_desc),  # type: ignore
         region: Option(str, description=region_desc)  # type: ignore
     ) -> None:
@@ -110,10 +115,12 @@ class PSNCog(commands.Cog):
             return
 
         cookie_arg = pdccws_p or None
+        npsso_arg = npsso or None
 
-        request = PSNRequest(pdccws_p=cookie_arg,
-                             region=region,
-                             product_id=product_id)
+        request = PSNRequest(region=region,
+                             product_id=product_id,
+                             pdccws_p=cookie_arg,
+                             npsso=npsso_arg)
 
         try:
             await self.api.add_to_cart(request)
@@ -139,6 +146,7 @@ class PSNCog(commands.Cog):
         self,
         ctx: discord.ApplicationContext,
         pdccws_p: Option(str, description=token_desc, required=False),  # type: ignore
+        npsso: Option(str, description=npsso_desc, required=False),  # type: ignore
         product_id: Option(str, description=id_desc),  # type: ignore
         region: Option(str, description=region_desc)  # type: ignore
     ) -> None:
@@ -154,10 +162,12 @@ class PSNCog(commands.Cog):
             return
 
         cookie_arg = pdccws_p or None
+        npsso_arg = npsso or None
 
-        request = PSNRequest(pdccws_p=cookie_arg,
-                             region=region,
-                             product_id=product_id)
+        request = PSNRequest(region=region,
+                             product_id=product_id,
+                             pdccws_p=cookie_arg,
+                             npsso=npsso_arg)
 
         try:
             await self.api.remove_from_cart(request)

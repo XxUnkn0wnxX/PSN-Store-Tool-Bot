@@ -16,14 +16,15 @@ class PSNOperation(Enum):
 
 @dataclass
 class PSNRequest:
-    pdccws_p: str | None = None
     region: str
     product_id: str
+    pdccws_p: str | None = None
+    npsso: str | None = None
 
 class PSN:
     def __init__(self, npsso: str, default_pdc: str | None = None):
-        self.secret = npsso
-        self.psnawp = PSNAWP(self.secret)
+        self.default_npsso = npsso
+        self.psnawp = PSNAWP(self.default_npsso)
 
         self.default_pdc = default_pdc or None
 
@@ -46,6 +47,18 @@ class PSN:
         if sep:
             return f"{country}/{lang}"
         return region.replace("-", "/")
+
+    def _resolve_credentials(self, request: PSNRequest) -> tuple[str, str]:
+        cookie_value = request.pdccws_p or self.default_pdc
+        npsso_value = request.npsso or self.default_npsso
+
+        if not cookie_value:
+            raise APIError("Missing pdccws_p cookie. Provide it in the command or set PDC in .env.")
+
+        if not npsso_value:
+            raise APIError("Missing NPSSO token. Provide it in the command or set NPSSO in .env.")
+
+        return cookie_value, npsso_value
         
     def get_error_cause(self) -> str:
         return self.res.get("cause")
@@ -60,9 +73,7 @@ class PSN:
 
     def request_builder(self, request: PSNRequest, operation: PSNOperation) -> None:
         region_path = self._format_region_path(request.region)
-        cookie_value = request.pdccws_p or self.default_pdc
-        if not cookie_value:
-            raise APIError("Missing pdccws_p cookie. Provide it in the command or set PDC in .env.")
+        cookie_value, npsso_value = self._resolve_credentials(request)
         match operation:
             case PSNOperation.CHECK_AVATAR:
                 self.url = f"https://store.playstation.com/store/api/chihiro/00_09_000/container/{region_path}/19/{request.product_id}/"
@@ -70,7 +81,7 @@ class PSN:
                 "Origin": "https://checkout.playstation.com",
                 "content-type": "application/json",
                 "Accept-Language": request.region,
-                "Cookie": f"AKA_A2=A; pdccws_p={cookie_value}; isSignedIn=true; userinfo={self.secret}; p=0; gpdcTg=%5B1%5D"
+                "Cookie": f"AKA_A2=A; pdccws_p={cookie_value}; isSignedIn=true; userinfo={npsso_value}; p=0; gpdcTg=%5B1%5D"
                 }
 
             case PSNOperation.ADD_TO_CART:
@@ -79,7 +90,7 @@ class PSN:
                 "Origin": "https://checkout.playstation.com",
                 "content-type": "application/json",
                 "Accept-Language": request.region,
-                "Cookie": f"AKA_A2=A; pdccws_p={cookie_value}; isSignedIn=true; userinfo={self.secret}; p=0; gpdcTg=%5B1%5D"
+                "Cookie": f"AKA_A2=A; pdccws_p={cookie_value}; isSignedIn=true; userinfo={npsso_value}; p=0; gpdcTg=%5B1%5D"
                 }
                 self.data_json = {
                     "operationName": "addToCart",
@@ -100,7 +111,7 @@ class PSN:
                 "Origin": "https://checkout.playstation.com",
                 "content-type": "application/json",
                 "Accept-Language": request.region,
-                "Cookie": f"AKA_A2=A; pdccws_p={cookie_value}; isSignedIn=true; userinfo={self.secret}; p=0; gpdcTg=%5B1%5D"
+                "Cookie": f"AKA_A2=A; pdccws_p={cookie_value}; isSignedIn=true; userinfo={npsso_value}; p=0; gpdcTg=%5B1%5D"
                 }
                 self.data_json = {
                     "operationName": "removeFromCart",
