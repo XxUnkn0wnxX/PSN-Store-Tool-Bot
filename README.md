@@ -61,6 +61,7 @@ Then edit `.env` with your credentials:
 ```
 TOKEN=your_discord_bot_token
 NPSSO=your_64_char_npsso_token
+GUILD_ID=your_discord_server_id
 ```
 
 ---
@@ -70,6 +71,7 @@ NPSSO=your_64_char_npsso_token
 In the [Discord Developer Portal](https://discord.com/developers/applications):
 
 - Enable the **Message Content Intent** under *Privileged Gateway Intents*.
+- Grab the **Server ID** of the guild where you want to test slash commands and set `GUILD_ID` in `.env`.
 - Generate an OAuth2 URL with the following scopes:
 
   ```

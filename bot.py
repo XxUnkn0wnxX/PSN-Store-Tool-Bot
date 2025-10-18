@@ -10,12 +10,18 @@ load_dotenv()
 from pathlib import Path
 load_dotenv(Path(__file__).with_name(".env"))  # resolve .env next to bot.py
 
-required = ["TOKEN", "NPSSO"]
+required = ["TOKEN", "NPSSO", "GUILD_ID"]
 missing = [k for k in required if not os.getenv(k)]
 if missing:
     raise SystemExit(f"Missing env var(s): {', '.join(missing)}")
 
-GUILD_ID = 361510651375648771  # your server id
+try:
+    GUILD_ID = int(os.getenv("GUILD_ID", "0"))
+except ValueError as exc:
+    raise SystemExit("GUILD_ID must be a numeric Discord server ID") from exc
+
+if GUILD_ID <= 0:
+    raise SystemExit("GUILD_ID must be a positive Discord server ID")
 
 intents = discord.Intents.default()
 intents.message_content = True
