@@ -52,11 +52,30 @@ class Misc(commands.Cog):
         embed.set_footer(text="🤖 Bot is running smoothly!")
         await ctx.respond(embed=embed)
 
+    @commands.command(name="ping")
+    async def ping_command(self, ctx: commands.Context) -> None:
+        if not await self._ensure_allowed_guild(ctx):
+            return
+        latency = self.bot.latency * 1000
+        embed = discord.Embed(
+            title="🏓 Pong!",
+            description=f"⚡ **Latency:** {latency:.2f}ms",
+            color=0x2ecc71,
+        )
+        embed.set_footer(text="🤖 Bot is running smoothly!")
+        await ctx.send(embed=embed)
+
     @discord.slash_command(description="📚 Shows how to use the bot.")
     async def tutorial(self, ctx: discord.ApplicationContext) -> None:
         if not await self._ensure_allowed_guild(ctx):
             return
         await ctx.respond(embed=tutorialemb)
+
+    @commands.command(name="tutorial")
+    async def tutorial_command(self, ctx: commands.Context) -> None:
+        if not await self._ensure_allowed_guild(ctx):
+            return
+        await ctx.send(embed=tutorialemb)
 
     @discord.slash_command(description="👥 Shows credits and bot information.")
     async def credits(self, ctx: discord.ApplicationContext) -> None:
@@ -64,7 +83,13 @@ class Misc(commands.Cog):
             return
         await ctx.respond(embed=creditsemb)
 
-    async def _ensure_allowed_guild(self, ctx: discord.ApplicationContext) -> bool:
+    @commands.command(name="credits")
+    async def credits_command(self, ctx: commands.Context) -> None:
+        if not await self._ensure_allowed_guild(ctx):
+            return
+        await ctx.send(embed=creditsemb)
+
+    async def _ensure_allowed_guild(self, ctx) -> bool:
         if not self.allowed_guild_id:
             return True
         if ctx.guild is None or str(ctx.guild.id) != str(self.allowed_guild_id):
@@ -73,7 +98,10 @@ class Misc(commands.Cog):
                 description="This bot is configured for a specific server and cannot be used here.",
                 color=0xe74c3c,
             )
-            await ctx.respond(embed=embed)
+            if hasattr(ctx, "respond"):
+                await ctx.respond(embed=embed)
+            else:
+                await ctx.send(embed=embed)
             return False
         return True
 

@@ -7,8 +7,9 @@
 
 **PSNToolBot** is a handy Discord bot that allows you to:
 
-- 🛒 Add **PlayStation 3 avatars** directly to your shopping cart
+- 🛒 Add **PlayStation avatars (PS3/PS4)** directly to your shopping cart
 - 🔍 Retrieve **PlayStation Account IDs** using just a PSN username
+- 💬 Trigger commands via slash menus or the legacy prefix (default `$`)
 
 Built for convenience and PlayStation fans! 💙
 
@@ -64,6 +65,7 @@ TOKEN=your_discord_bot_token
 NPSSO=your_64_char_npsso_token
 GUILD_ID=your_discord_server_id
 PDC=optional_pdccws_p_cookie
+PREFIX=$
 ```
 
 ---
@@ -98,6 +100,7 @@ Your bot is now live and ready to add avatars or fetch PSN IDs! 🎉
 - `python3 bot.py --force-sync` – Force a full slash-command resync even if commands already exist in Discord. Handy after you change command definitions and want them refreshed immediately.
 - Supply your `pdccws_p` cookie at runtime or set it in `.env` as `PDC`. The slash commands will fall back to the `.env` value if you omit the cookie argument.
 - Need to hit a different PlayStation account? Provide an `NPSSO` value in the slash command, otherwise the `.env` `NPSSO` is used.
+- Legacy prefix commands mirror the slash commands but always use the credentials in `.env`. Set `PREFIX` in `.env` (default `$`) if you want to change it.
 
 The bot auto-syncs commands in the guild defined by `GUILD_ID` on startup and refuses to run in other servers. Forced syncs and the built-in verifier ensure commands appear even if Discord is slow to propagate them.
 **Important:** This project is intended for single-server/self-hosted setups. Invite the bot only to the server that matches `GUILD_ID`.

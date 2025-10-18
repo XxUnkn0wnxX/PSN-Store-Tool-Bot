@@ -28,6 +28,8 @@ except ValueError as exc:
 if GUILD_ID <= 0:
     raise SystemExit("GUILD_ID must be a positive Discord server ID")
 
+PREFIX = os.getenv("PREFIX", "$")
+
 intents = discord.Intents.default()
 intents.message_content = True
 
@@ -52,7 +54,7 @@ _bot_token: str = ""
 
 
 bot = commands.Bot(
-    command_prefix=commands.when_mentioned,
+    command_prefix=commands.when_mentioned_or(PREFIX),
     activity=activity,
     intents=intents,
 )

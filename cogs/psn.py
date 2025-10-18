@@ -158,6 +158,36 @@ class PSNCog(commands.Cog):
         embed_success.set_footer(text="🎮 Ready to add to cart!")
         await ctx.respond(embed=embed_success)
 
+    @commands.command(name="check_avatar")
+    async def check_avatar_prefix(self, ctx: commands.Context, product_id: str, region: str) -> None:
+        if not await self._ensure_allowed_guild(ctx):
+            return
+
+        try:
+            region = normalize_region_input(region)
+        except APIError as e:
+            await ctx.send(embed=discord.Embed(title="❌ Invalid Region", description=f"🚫 {e}", color=0xe74c3c))
+            return
+
+        request = PSNRequest(region=region, product_id=product_id)
+
+        try:
+            avatar_url = await self.api.check_avatar(request)
+        except APIError as e:
+            embed_error = discord.Embed(title="❌ Error Occurred", description=f"🚫 {e}", color=0xe74c3c)
+            embed_error.set_footer(text="💡 Check your inputs and try again!")
+            await ctx.send(embed=embed_error)
+            return
+
+        embed_success = discord.Embed(
+            title="✅ Avatar Found!",
+            description="🖼️ Here's your PlayStation avatar preview:",
+            color=0x27ae60,
+        )
+        embed_success.set_image(url=avatar_url)
+        embed_success.set_footer(text="🎮 Ready to add to cart!")
+        await ctx.send(embed=embed_success)
+
     @psn_group.command(
         description="🛒 Adds the avatar you input into your cart.")
     async def add_avatar(
@@ -215,6 +245,35 @@ class PSNCog(commands.Cog):
             color=0x27ae60)
         embed_success.set_footer(text="🎮 Check your PlayStation Store cart!")
         await ctx.respond(embed=embed_success)
+
+    @commands.command(name="add_avatar")
+    async def add_avatar_prefix(self, ctx: commands.Context, product_id: str, region: str) -> None:
+        if not await self._ensure_allowed_guild(ctx):
+            return
+
+        try:
+            region = normalize_region_input(region)
+        except APIError as e:
+            await ctx.send(embed=discord.Embed(title="❌ Invalid Region", description=f"🚫 {e}", color=0xe74c3c))
+            return
+
+        request = PSNRequest(region=region, product_id=product_id)
+
+        try:
+            await self.api.add_to_cart(request)
+        except APIError as e:
+            embed_error = discord.Embed(title="❌ Failed to Add", description=f"🚫 {e}", color=0xe74c3c)
+            embed_error.set_footer(text="💡 Make sure your token and product ID are correct!")
+            await ctx.send(embed=embed_error)
+            return
+
+        embed_success = discord.Embed(
+            title="✅ Added Successfully!",
+            description=f"🛒 **{product_id}** has been added to your cart!",
+            color=0x27ae60,
+        )
+        embed_success.set_footer(text="🎮 Check your PlayStation Store cart!")
+        await ctx.send(embed=embed_success)
 
     @psn_group.command(
         description="🗑️ Removes the avatar you input from your cart.")
@@ -275,6 +334,35 @@ class PSNCog(commands.Cog):
             text="🎮 Item removed from PlayStation Store cart!")
         await ctx.respond(embed=embed_success)
 
+    @commands.command(name="remove_avatar")
+    async def remove_avatar_prefix(self, ctx: commands.Context, product_id: str, region: str) -> None:
+        if not await self._ensure_allowed_guild(ctx):
+            return
+
+        try:
+            region = normalize_region_input(region)
+        except APIError as e:
+            await ctx.send(embed=discord.Embed(title="❌ Invalid Region", description=f"🚫 {e}", color=0xe74c3c))
+            return
+
+        request = PSNRequest(region=region, product_id=product_id)
+
+        try:
+            await self.api.remove_from_cart(request)
+        except APIError as e:
+            embed_error = discord.Embed(title="❌ Failed to Remove", description=f"🚫 {e}", color=0xe74c3c)
+            embed_error.set_footer(text="💡 Make sure the item is in your cart!")
+            await ctx.send(embed=embed_error)
+            return
+
+        embed_success = discord.Embed(
+            title="✅ Removed Successfully!",
+            description=f"🗑️ **{product_id}** has been removed from your cart!",
+            color=0x27ae60,
+        )
+        embed_success.set_footer(text="🎮 Item removed from PlayStation Store cart!")
+        await ctx.send(embed=embed_success)
+
     @psn_group.command(
         description="🆔 Gets the account ID from a PSN username.")
     async def account_id(self, ctx: discord.ApplicationContext,
@@ -306,7 +394,35 @@ class PSNCog(commands.Cog):
         embed_success.set_footer(text="✅ Account ID retrieved successfully!")
         await ctx.edit(embed=embed_success)
 
-    async def _ensure_allowed_guild(self, ctx: discord.ApplicationContext) -> bool:
+    @commands.command(name="account_id")
+    async def account_id_prefix(self, ctx: commands.Context, username: str) -> None:
+        if not await self._ensure_allowed_guild(ctx):
+            return
+
+        embed_searching = discord.Embed(
+            title="🔍 Searching User...",
+            description=f"⏳ Looking up **{username}** on PlayStation Network...",
+            color=0xf39c12,
+        )
+        message = await ctx.send(embed=embed_searching)
+
+        try:
+            accid = await self.api.obtain_account_id(username)
+        except APIError as e:
+            embed_error = discord.Embed(title="❌ User Not Found", description=f"🚫 {e}", color=0xe74c3c)
+            embed_error.set_footer(text="💡 Check the username and try again!")
+            await message.edit(embed=embed_error)
+            return
+
+        embed_success = discord.Embed(
+            title=f"🎮 {username}",
+            description=f"🆔 **Account ID:** `{accid}`",
+            color=0x27ae60,
+        )
+        embed_success.set_footer(text="✅ Account ID retrieved successfully!")
+        await message.edit(embed=embed_success)
+
+    async def _ensure_allowed_guild(self, ctx) -> bool:
         if not self.allowed_guild_id:
             return True
         if ctx.guild is None or str(ctx.guild.id) != str(self.allowed_guild_id):
@@ -315,7 +431,10 @@ class PSNCog(commands.Cog):
                 description="This bot is configured for a specific server and cannot be used here.",
                 color=0xe74c3c,
             )
-            await ctx.respond(embed=embed)
+            if hasattr(ctx, "respond"):
+                await ctx.respond(embed=embed)
+            else:
+                await ctx.send(embed=embed)
             return False
         return True
 
