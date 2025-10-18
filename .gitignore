@@ -1,3 +1,4 @@
 tmp/
 AGENTS.md
 .venv/
+.env
