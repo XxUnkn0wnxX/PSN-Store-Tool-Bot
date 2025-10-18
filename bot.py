@@ -36,6 +36,7 @@ activity = discord.Activity(
 COGS = ["misc", "psn", "psprices"]
 APPLICATION_ID: str | None = None
 _banner_printed = False
+_cogs_loaded = False
 
 
 bot = commands.Bot(
@@ -46,6 +47,9 @@ bot = commands.Bot(
 
 
 async def load_extensions() -> None:
+    global _cogs_loaded
+    if _cogs_loaded:
+        return
     print("[setup] loading cogs…")
     for name in COGS:
         loaded = False
@@ -64,6 +68,7 @@ async def load_extensions() -> None:
             print(f"[cog] FAILED to load {name} (tried cogs.{name} and {name})")
 
     print("[setup] finished loading cogs")
+    _cogs_loaded = True
 
 
 async def ensure_guild_membership(token: str, guild_id: int) -> bool:
@@ -100,11 +105,6 @@ async def ensure_guild_membership(token: str, guild_id: int) -> bool:
             raise SystemExit(
                 f"Unexpected response when checking guild {guild_id} (status {resp.status}): {text}"
             )
-
-
-@bot.event
-async def setup_hook() -> None:
-    await load_extensions()
 
 
 @bot.event
