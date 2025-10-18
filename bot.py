@@ -187,9 +187,12 @@ async def on_ready() -> None:
     available = [c.qualified_name for c in bot.application_commands]
 
     if _need_sync_global or _force_sync:
+        start = time.perf_counter()
         print("[sync] Syncing global commands…", flush=True)
         try:
             await bot.sync_commands()
+            duration = time.perf_counter() - start
+            print(f"[sync] Syncing global commands… (completed in {duration:.2f}s)", flush=True)
         except Exception as exc:
             print(f"[sync] Global sync failed: {exc}")
             raise
@@ -197,9 +200,12 @@ async def on_ready() -> None:
         print("[sync] Global commands already up to date; skipping sync.", flush=True)
 
     if _need_sync_guild or _force_sync:
+        start = time.perf_counter()
         print("[sync] Syncing guild commands…", flush=True)
         try:
             await bot.sync_commands(guild_ids=[GUILD_ID])
+            duration = time.perf_counter() - start
+            print(f"[sync] Syncing guild commands… (completed in {duration:.2f}s)", flush=True)
         except Exception as exc:
             print(f"[sync] Guild sync failed: {exc}")
             raise
