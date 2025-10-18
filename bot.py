@@ -3,6 +3,7 @@ import time
 import argparse
 import traceback
 import asyncio
+from collections.abc import Awaitable, Callable
 import aiohttp
 import discord
 from dotenv import load_dotenv
@@ -153,9 +154,12 @@ async def wait_for_command_sets(
     expected_guild: set[str],
     timeout: float = 30.0,
     interval: float = 3.0,
+    retry_callback: Callable[[set[str], set[str]], Awaitable[None]] | None = None,
+    max_attempts: int = 5,
 ) -> bool:
-    deadline = time.monotonic() + timeout
-    while True:
+    attempts = 0
+    while attempts < max_attempts:
+        deadline = time.monotonic() + timeout
         existing_global, existing_guild = await fetch_command_sets(token, guild_id)
 
         missing_global = expected_global - existing_global
@@ -169,11 +173,20 @@ async def wait_for_command_sets(
                 print(f"[sync] Global commands still missing after timeout: {sorted(missing_global)}")
             if missing_guild:
                 print(f"[sync] Guild commands still missing after timeout: {sorted(missing_guild)}")
-            return False
+            attempts += 1
+            if retry_callback is not None:
+                print(f"[sync] Re-attempting manual sync (attempt {attempts}/{max_attempts})…", flush=True)
+                try:
+                    await retry_callback(missing_global, missing_guild)
+                except Exception as exc:
+                    print(f"[sync] Retry sync failed: {exc}", flush=True)
+            continue
 
         remaining = max(0, deadline - time.monotonic())
         print(f"[sync] Command verification ongoing (retry in {interval:.0f}s, {remaining:.0f}s left)…", flush=True)
         await asyncio.sleep(interval)
+    print("[sync] Command verification failed after maximum attempts.", flush=True)
+    return False
 
 
 @bot.event
@@ -190,11 +203,13 @@ async def on_ready() -> None:
     )
     available = [c.qualified_name for c in bot.application_commands]
 
+    retry_callback: Callable[[set[str], set[str]], Awaitable[None]] | None = None
+
     if AUTO_SYNC_DEBUG_GUILD and not _force_sync:
         print("[sync] Using debug_guilds auto-sync; skipping manual sync.", flush=True)
     else:
-        async def _do_sync() -> None:
-            if _need_sync_global or _force_sync:
+        async def _do_sync(force_global: bool, force_guild: bool) -> None:
+            if force_global:
                 start = time.perf_counter()
                 print("[sync] Syncing global commands…", flush=True)
                 await bot.sync_commands()
@@ -203,7 +218,7 @@ async def on_ready() -> None:
             else:
                 print("[sync] Global commands already up to date; skipping sync.", flush=True)
 
-            if _need_sync_guild or _force_sync:
+            if force_guild:
                 start = time.perf_counter()
                 print("[sync] Syncing guild commands…", flush=True)
                 await bot.sync_commands(guild_ids=[GUILD_ID])
@@ -212,15 +227,44 @@ async def on_ready() -> None:
             else:
                 print("[sync] Guild commands already up to date; skipping sync.", flush=True)
 
+        initial_force_global = _need_sync_global or _force_sync
+        initial_force_guild = _need_sync_guild or _force_sync
+
         try:
-            await asyncio.wait_for(_do_sync(), timeout=SYNC_TIMEOUT_SECS)
+            await asyncio.wait_for(
+                _do_sync(initial_force_global, initial_force_guild),
+                timeout=SYNC_TIMEOUT_SECS,
+            )
         except asyncio.TimeoutError:
             print(
                 f"[sync] Manual sync timed out after {SYNC_TIMEOUT_SECS}s — continuing; verification will confirm state.",
                 flush=True,
             )
 
-    success = await wait_for_command_sets(_bot_token, GUILD_ID, _expected_global, _expected_guild)
+        async def retry_callback_fn(missing_global: set[str], missing_guild: set[str]) -> None:
+            force_global = bool(missing_global) or _force_sync
+            force_guild = bool(missing_guild) or _force_sync
+            if not force_global and not force_guild:
+                return
+            try:
+                await asyncio.wait_for(
+                    _do_sync(force_global, force_guild), timeout=SYNC_TIMEOUT_SECS
+                )
+            except asyncio.TimeoutError:
+                print(
+                    f"[sync] Retry manual sync timed out after {SYNC_TIMEOUT_SECS}s; will re-check commands.",
+                    flush=True,
+                )
+
+        retry_callback = retry_callback_fn
+
+    success = await wait_for_command_sets(
+        _bot_token,
+        GUILD_ID,
+        _expected_global,
+        _expected_guild,
+        retry_callback=retry_callback,
+    )
     if success:
         print("[sync] Command verification succeeded.", flush=True)
     else:
