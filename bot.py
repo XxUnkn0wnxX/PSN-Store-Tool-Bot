@@ -75,7 +75,7 @@ async def on_ready() -> None:
     guild = bot.get_guild(GUILD_ID)
     if guild is None:
         print("[warn] Bot is not a member of the configured guild "
-              f"({GUILD_ID}). Please invite it using:\n  {invite_url}")
+              f"({GUILD_ID}). Please invite it using:\n\n{invite_url}\n")
         await bot.close()
         return
 
@@ -84,13 +84,13 @@ async def on_ready() -> None:
         await bot.sync_commands(guild_id=GUILD_ID)
     except discord.Forbidden as exc:
         print(f"[error] Missing access to guild {GUILD_ID}: {exc}. "
-              f"Invite the bot using:\n  {invite_url}")
+              f"Invite the bot using:\n\n{invite_url}\n")
         await bot.close()
         return
     except discord.HTTPException as exc:
         if exc.status == 403:
             print(f"[error] Missing access to guild {GUILD_ID}: {exc.text}. "
-                  f"Invite the bot using:\n  {invite_url}")
+                  f"Invite the bot using:\n\n{invite_url}\n")
             await bot.close()
             return
         raise
