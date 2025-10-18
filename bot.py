@@ -167,6 +167,8 @@ async def wait_for_command_sets(
                 print(f"[sync] Guild commands still missing after timeout: {sorted(missing_guild)}")
             return False
 
+        remaining = max(0, deadline - time.monotonic())
+        print(f"[sync] Command verification ongoing (retry in {interval:.0f}s, {remaining:.0f}s left)…", flush=True)
         await asyncio.sleep(interval)
 
 
