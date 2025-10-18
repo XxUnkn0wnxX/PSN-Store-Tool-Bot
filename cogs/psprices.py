@@ -40,4 +40,5 @@ class PSPricesCog(commands.Cog):
        
 
 def setup(bot: commands.Bot) -> None:
-    bot.add_cog(PSPricesCog(bot))
+    # Command intentionally not registered; PSPrices blocks automated access.
+    return
