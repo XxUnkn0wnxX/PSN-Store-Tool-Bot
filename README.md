@@ -110,6 +110,7 @@ Open an [issue](https://github.com/yourusername/PSNToolBot/issues) or submit a p
 ## 🧾 Credits
 
 - 👨‍💻 **Bot Developer**: [𐌔𐌉𐌂𐌊.dll](https://github.com/sickfff)
+- 🛠️ **Bot Maintainer**: [OpenAI](https://openai.com/codex/)
 - 🧠 Inspired by tools and ideas shared within the **PS3 modding & dev community**
 - 📘 Special thanks to contributors and open-source libraries that made this possible
 
