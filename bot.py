@@ -151,8 +151,8 @@ async def wait_for_command_sets(
     guild_id: int,
     expected_global: set[str],
     expected_guild: set[str],
-    timeout: float = 60.0,
-    interval: float = 5.0,
+    timeout: float = 30.0,
+    interval: float = 3.0,
 ) -> bool:
     deadline = time.monotonic() + timeout
     while True:
