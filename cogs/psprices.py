@@ -24,26 +24,18 @@ class PSPricesCog(commands.Cog):
         )
         await ctx.respond(embed=embed_processing)
 
-        try:
-            api = PSPrices(url)
-            product_id = await api.obtain_skuid()
-        except APIError as e:
-            embed_error = discord.Embed(
-                title="❌ Invalid URL", 
-                description=f"🚫 {e}", 
-                color=0xe74c3c
-            )
-            embed_error.set_footer(text="💡 Make sure you're using a valid PSPrices URL!")
-            await ctx.edit(embed=embed_error)
-            return
-
-        embed_success = discord.Embed(
-            title="✅ Product ID Found!",
-            description=f"🆔 **Product ID:** `{product_id}`",
-            color=0x27ae60
+        embed_disabled = discord.Embed(
+            title="⚠️ Command Unavailable",
+            description=(
+                "PSPrices now blocks automated access, so this lookup is disabled. "
+                "Open the PSPrices link in your browser, copy the PlayStation Store "
+                "product ID manually, and use that with the PSN commands."
+            ),
+            color=0xe67e22
         )
-        embed_success.set_footer(text="📋 Copy this ID to use with PSN commands!")
-        await ctx.edit(embed=embed_success)
+        embed_disabled.set_footer(text="📝 Example product ID: EP4015-NPEB00982_00-AVAGARESTG000009")
+        await ctx.edit(embed=embed_disabled)
+        return
        
 
 def setup(bot: commands.Bot) -> None:
