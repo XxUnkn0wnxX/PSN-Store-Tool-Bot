@@ -9,26 +9,57 @@ import aiohttp
 import discord
 from dotenv import load_dotenv
 from discord.ext import commands
+from pathlib import Path
+
+
+def _load_config() -> dict[str, str]:
+    config_path = Path(__file__).with_name(".config")
+    if not config_path.exists():
+        raise SystemExit("Missing .config file. Copy .config.template to .config and fill TOKEN, GUILD_ID, and PREFIX.")
+
+    config: dict[str, str] = {}
+    with config_path.open("r", encoding="utf-8") as handle:
+        for lineno, raw in enumerate(handle, start=1):
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" not in line:
+                raise SystemExit(f"Invalid line in .config (line {lineno}): {raw.rstrip()}")
+            key, value = line.split("=", 1)
+            config[key.strip().upper()] = value.strip()
+    return config
+
 
 load_dotenv()
+env_path = Path(__file__).with_name(".env")
+if env_path.exists():
+    load_dotenv(env_path)  # resolve .env next to bot.py
 
-from pathlib import Path
-load_dotenv(Path(__file__).with_name(".env"))  # resolve .env next to bot.py
+config_values = _load_config()
 
-required = ["TOKEN", "NPSSO", "GUILD_ID"]
-missing = [k for k in required if not os.getenv(k)]
-if missing:
-    raise SystemExit(f"Missing env var(s): {', '.join(missing)}")
+token_config = config_values.get("TOKEN", "").strip()
+guild_config = config_values.get("GUILD_ID", "").strip()
+prefix_config = config_values.get("PREFIX", "").strip() or "$"
+
+if not token_config or not guild_config:
+    raise SystemExit(".config must define TOKEN and GUILD_ID.")
+
+os.environ["TOKEN"] = token_config
+os.environ["GUILD_ID"] = guild_config
+os.environ["PREFIX"] = prefix_config
+
+if not os.getenv("NPSSO"):
+    raise SystemExit("Missing NPSSO in environment (.env)")
 
 try:
-    GUILD_ID = int(os.getenv("GUILD_ID", "0"))
+    GUILD_ID = int(guild_config)
 except ValueError as exc:
     raise SystemExit("GUILD_ID must be a numeric Discord server ID") from exc
 
 if GUILD_ID <= 0:
     raise SystemExit("GUILD_ID must be a positive Discord server ID")
 
-PREFIX = os.getenv("PREFIX", "$")
+PREFIX = prefix_config or "$"
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -345,9 +376,7 @@ async def prepare_expected_commands() -> tuple[set[str], set[str]]:
 async def main(args: argparse.Namespace) -> None:
     token = os.getenv("TOKEN")
     if not token:
-        raise SystemExit("Missing TOKEN in .env")
-    if not os.getenv("NPSSO"):
-        print("[warn] NPSSO not set; PSN commands may error at runtime.")
+        raise SystemExit("Missing TOKEN in configuration (.config)")
 
     global _bot_token, _force_sync, _need_sync_global, _need_sync_guild
     _bot_token = token

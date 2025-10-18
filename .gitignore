@@ -2,5 +2,6 @@ tmp/
 AGENTS.md
 .venv/
 .env
+.config
 __pycache__/
 *.py[cod]

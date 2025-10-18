@@ -50,23 +50,37 @@ pip install -r requirements.txt
 
 ---
 
-## ⚙️ Setup `.env`
+## ⚙️ Configure the Bot
 
-Copy `.env.template` to `.env` and fill in your secrets:
+### 1. `.config` (Discord settings)
 
+Copy the template and fill in your Discord details:
+
+```bash
+cp .config.template .config
 ```
-cp .env.template .env
-```
-
-Then edit `.env` with your credentials:
 
 ```
 TOKEN=your_discord_bot_token
-NPSSO=your_64_char_npsso_token
 GUILD_ID=your_discord_server_id
-PDC=optional_pdccws_p_cookie
-PREFIX=$
+PREFIX=$   # Optional; defaults to `$`
 ```
+
+### 2. `.env` (PlayStation credentials)
+
+Copy the template and add your PSN secrets:
+
+```bash
+cp .env.template .env
+```
+
+```
+NPSSO=your_64_char_npsso_token
+PDC=optional_pdccws_p_cookie
+```
+
+- `NPSSO` is required for PSN API calls.
+- `PDC` is optional; if omitted, supply it as an override when commands ask for it.
 
 ---
 
@@ -148,6 +162,11 @@ $psn add au EP4293-CUSA15900_00-AV00000000000005 EP4067-NPEB01320_00-AVPOPULUSM0
 Each ID is processed individually; the bot sends the familiar avatar preview embed for every success and a summary for any failures.
 
 ---
+
+## 📝 TODO
+
+- [ ] Store NPSSO/PDC values in an encrypted local database to support multiple users safely.
+- [ ] Add a `--env` CLI flag so the bot can explicitly load credentials from `.env` when desired.
 
 ## 💬 Support & Feedback
 

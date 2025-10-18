@@ -1,0 +1,4 @@
+# Discord bot configuration
+TOKEN=
+GUILD_ID=
+PREFIX=$
