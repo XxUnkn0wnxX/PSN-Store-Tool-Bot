@@ -5,9 +5,23 @@ from discord.ext import commands
 
 load_dotenv()
 
+intents = discord.Intents.default()
+intents.message_content = True
+
 activity = discord.Activity(type=discord.ActivityType.watching,
                             name="🎮 dev by groriz11 | /tutorial ")
-bot = commands.Bot(command_prefix="!", activity=activity)
+
+cogs_list = ["misc", "psn", "psprices"]
+
+
+class PSNBot(commands.Bot):
+    async def setup_hook(self) -> None:
+        for cog in cogs_list:
+            await self.load_extension(f"cogs.{cog}")
+        await self.sync_commands()
+
+
+bot = PSNBot(command_prefix="!", activity=activity, intents=intents)
 
 
 @bot.event
@@ -41,11 +55,6 @@ async def on_message(message: discord.Message) -> None:
     await bot.process_commands(message)
 
 
-cogs_list = ["misc", "psn", "psprices"]
-
 if __name__ == "__main__":
-    for cog in cogs_list:
-        bot.load_extension(f"cogs.{cog}")
-
     print("Starting bot...")
     bot.run(os.getenv("TOKEN"))

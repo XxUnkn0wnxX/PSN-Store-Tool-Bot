@@ -65,6 +65,22 @@ NPSSO=your_64_char_npsso_token
 
 ---
 
+## 🛡️ Discord Bot Configuration
+
+In the [Discord Developer Portal](https://discord.com/developers/applications):
+
+- Enable the **Message Content Intent** under *Privileged Gateway Intents*.
+- Generate an OAuth2 URL with the following scopes:
+
+  ```
+  bot
+  applications.commands
+  ```
+
+  Add extra permission bits (e.g. Administrator) if your server setup requires them.
+
+---
+
 ## ▶️ Run the Bot
 
 ```bash
