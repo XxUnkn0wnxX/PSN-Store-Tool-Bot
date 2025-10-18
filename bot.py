@@ -21,7 +21,12 @@ class PSNBot(commands.Bot):
         await self.sync_commands()
 
 
-bot = PSNBot(command_prefix="!", activity=activity, intents=intents)
+bot = PSNBot(
+    command_prefix=commands.when_mentioned,
+    activity=activity,
+    intents=intents,
+    debug_guilds=[361510651375648771]
+)
 
 
 @bot.event
