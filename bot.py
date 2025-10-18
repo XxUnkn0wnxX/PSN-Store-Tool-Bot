@@ -35,6 +35,7 @@ activity = discord.Activity(
 # Names of your cog modules (with or without a cogs/ package)
 COGS = ["misc", "psn", "psprices"]
 APPLICATION_ID: str | None = None
+_banner_printed = False
 
 
 bot = commands.Bot(
@@ -108,6 +109,9 @@ async def setup_hook() -> None:
 
 @bot.event
 async def on_ready() -> None:
+    global _banner_printed
+    if _banner_printed:
+        return
     print(f"[lib] Pycord version: {discord.__version__}")
     print(f"[lib] module path  : {discord.__file__}")
     print(f"[ready] Logged in as {bot.user} ({bot.user.id})")
@@ -115,9 +119,12 @@ async def on_ready() -> None:
         f"https://discord.com/api/oauth2/authorize?"
         f"client_id={(APPLICATION_ID or bot.user.id)}&scope=bot%20applications.commands&permissions=8&integration_type=0"
     )
-    await bot.sync_commands()
-    await bot.sync_commands(guild_ids=[GUILD_ID])
-    print(f"[ready] Commands   : {[c.qualified_name for c in bot.application_commands]}")
+    global_commands = await bot.sync_commands()
+    guild_commands = await bot.sync_commands(guild_ids=[GUILD_ID])
+    print(f"[sync] Global commands: {[cmd.qualified_name for cmd in global_commands]}", flush=True)
+    print(f"[sync] Guild commands ({GUILD_ID}): {[cmd.qualified_name for cmd in guild_commands]}", flush=True)
+    available = [c.qualified_name for c in bot.application_commands]
+    print(f"[ready] Commands   : {available}", flush=True)
     print(f"""
 ╔═══════════════════════════════════════════════════════════════════════════════════════╗
 ║                                  🎮 PSNTOOLBOT 🎮                                     ║
@@ -126,7 +133,8 @@ async def on_ready() -> None:
 ║  🔗 Invite: {invite_url}
 ║  🎮 Original creator: https://github.com/groriz11                                     ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════╝
-    """)
+    """, flush=True)
+    _banner_printed = True
 
 
 @bot.event
