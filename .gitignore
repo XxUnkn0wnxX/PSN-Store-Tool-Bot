@@ -4,4 +4,3 @@ AGENTS.md
 .env
 __pycache__/
 *.py[cod]
-cookies.txt
