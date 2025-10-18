@@ -169,6 +169,58 @@ class PSNCog(commands.Cog):
         remaining = view.buffer[view.index :].strip()
         return bool(remaining)
 
+    async def _prepare_prefix_batch(
+        self,
+        ctx: commands.Context,
+        payload: str,
+        operation: str,
+    ) -> tuple[str, list[str]] | None:
+        payload = (payload or "").strip()
+        if not payload:
+            usage = f"{ctx.prefix or ''}{ctx.invoked_with} <region> <product_id> [more_ids...]"
+            embed = discord.Embed(
+                title="ℹ️ Missing Arguments",
+                description=f"Provide a region followed by one or more product IDs.\nExample: `{usage}`",
+                color=0xf1c40f,
+            )
+            await ctx.send(embed=embed)
+            return None
+
+        tokens: list[str] = []
+        for line in payload.replace("\r", "\n").splitlines():
+            tokens.extend(part.strip() for part in line.split())
+
+        tokens = [t for t in tokens if t]
+        if len(tokens) < 2:
+            usage = f"{ctx.prefix or ''}{ctx.invoked_with} <region> <product_id> [more_ids...]"
+            embed = discord.Embed(
+                title="ℹ️ Not Enough Arguments",
+                description=f"You need to supply at least one product ID after the region.\nExample: `{usage}`",
+                color=0xf1c40f,
+            )
+            await ctx.send(embed=embed)
+            return None
+
+        region = tokens[0]
+        product_ids = tokens[1:]
+
+        cookie_like = [
+            pid for pid in product_ids if any(symbol in pid for symbol in ("%", "=", ";"))
+        ]
+        if cookie_like:
+            embed = discord.Embed(
+                title="⚠️ Cookie Detected",
+                description=(
+                    "Prefix commands cannot accept NPSSO or cookie overrides. "
+                    "Use the slash command variant (e.g. `/psn add`) to supply those values."
+                ),
+                color=0xe67e22,
+            )
+            await ctx.send(embed=embed)
+            return None
+
+        return region, product_ids
+
     async def _send_embed(self, ctx, embed: discord.Embed, *, followup: bool = False) -> None:
         if self._is_app_context(ctx):
             app_ctx = ctx  # type: ignore[assignment]
@@ -267,7 +319,7 @@ class PSNCog(commands.Cog):
         self,
         ctx,
         *,
-        product_id: str,
+        product_ids: list[str],
         region: str,
         cookie_arg: str | None,
         npsso_arg: str | None,
@@ -276,6 +328,16 @@ class PSNCog(commands.Cog):
         operation: str,
     ) -> None:
         if not await self._ensure_allowed_guild(ctx):
+            return
+
+        cleaned_ids = [pid.strip() for pid in product_ids if pid.strip()]
+        if not cleaned_ids:
+            embed = discord.Embed(
+                title="ℹ️ Missing Product IDs",
+                description="Provide at least one product ID to process.",
+                color=0xf1c40f,
+            )
+            await self._send_embed(ctx, embed)
             return
 
         try:
@@ -291,13 +353,6 @@ class PSNCog(commands.Cog):
             )
             return
 
-        request = PSNRequest(
-            region=region,
-            product_id=product_id,
-            pdccws_p=cookie_arg,
-            npsso=npsso_arg,
-        )
-
         if cookie_arg:
             print(f"[psn] Using custom PDC from command for {ctx.author}: {mask_value(cookie_arg)}")
         if npsso_arg:
@@ -305,11 +360,7 @@ class PSNCog(commands.Cog):
             print(f"[psn] Using custom NPSSO from command for {ctx.author}: {masked}")
 
         action_text = "Adding to Cart" if operation == "add" else "Removing from Cart"
-        progress_description = (
-            "⏳ Please wait while we add your avatar to cart!"
-            if operation == "add"
-            else "⏳ Please wait while we remove your avatar from cart!"
-        )
+        progress_description = f"⏳ Processing {len(cleaned_ids)} item(s)..."
 
         await self._send_embed(
             ctx,
@@ -320,57 +371,72 @@ class PSNCog(commands.Cog):
             ),
         )
 
-        try:
-            if operation == "add":
-                await self.api.add_to_cart(request)
-            else:
-                await self.api.remove_from_cart(request)
-        except APIError as e:
-            message = e.message if getattr(e, "message", None) else str(e)
-            followup = self._is_app_context(ctx)
-            if getattr(e, "code", None) == "auth":
-                hints = getattr(e, "hints", {}) or {}
-                need_cookie = hints.get("cookie", True)
-                need_npsso = hints.get("npsso", True)
-                embed_error = self._auth_error_embed(
-                    message,
-                    cookie_override,
-                    npsso_override,
-                    need_cookie,
-                    need_npsso,
-                )
-            else:
-                title = "❌ Failed to Add" if operation == "add" else "❌ Failed to Remove"
-                footer = (
-                    "💡 Make sure your token and product ID are correct!"
-                    if operation == "add"
-                    else "💡 Make sure the item is in your cart!"
-                )
-                embed_error = discord.Embed(
-                    title=title,
-                    description=f"🚫 {message}",
-                    color=0xe74c3c,
-                )
-                embed_error.set_footer(text=footer)
-            await self._send_embed(ctx, embed_error, followup=followup)
-            return
+        successes: list[str] = []
+        failures: list[tuple[str, str]] = []
 
-        if operation == "add":
-            success_title = "✅ Added Successfully!"
-            success_description = f"🛒 **{product_id}** has been added to your cart!"
-            footer = "🎮 Check your PlayStation Store cart!"
+        for pid in cleaned_ids:
+            request = PSNRequest(
+                region=region,
+                product_id=pid,
+                pdccws_p=cookie_arg,
+                npsso=npsso_arg,
+            )
+
+            try:
+                if operation == "add":
+                    await self.api.add_to_cart(request)
+                else:
+                    await self.api.remove_from_cart(request)
+                successes.append(pid)
+            except APIError as e:
+                message = e.message if getattr(e, "message", None) else str(e)
+                if getattr(e, "code", None) == "auth":
+                    hints = getattr(e, "hints", {}) or {}
+                    need_cookie = hints.get("cookie", True)
+                    need_npsso = hints.get("npsso", True)
+                    embed_error = self._auth_error_embed(
+                        message,
+                        cookie_override,
+                        npsso_override,
+                        need_cookie,
+                        need_npsso,
+                    )
+                    await self._send_embed(ctx, embed_error, followup=self._is_app_context(ctx))
+                    return
+                failures.append((pid, message))
+
+        followup = self._is_app_context(ctx)
+
+        if successes and not failures:
+            title = "✅ Added Successfully!" if operation == "add" else "✅ Removed Successfully!"
+            description = "• " + "\n• ".join(successes)
+            color = 0x27ae60
+        elif failures and not successes:
+            title = "❌ Failed to Add" if operation == "add" else "❌ Failed to Remove"
+            description = "\n".join(f"• {pid} — {msg}" for pid, msg in failures)
+            color = 0xe74c3c
         else:
-            success_title = "✅ Removed Successfully!"
-            success_description = f"🗑️ **{product_id}** has been removed from your cart!"
-            footer = "🎮 Item removed from PlayStation Store cart!"
+            title = "⚠️ Partial Success"
+            parts = [
+                "✅ Processed:\n" + "\n".join(f"• {pid}" for pid in successes),
+                "⚠️ Failed:\n" + "\n".join(f"• {pid} — {msg}" for pid, msg in failures),
+            ]
+            description = "\n\n".join(parts)
+            color = 0xf1c40f
 
-        embed_success = discord.Embed(
-            title=success_title,
-            description=success_description,
-            color=0x27ae60,
+        footer = (
+            "🎮 Check your PlayStation Store cart!"
+            if operation == "add"
+            else "🎮 Item removed from PlayStation Store cart!"
         )
-        embed_success.set_footer(text=footer)
-        await self._send_embed(ctx, embed_success, followup=self._is_app_context(ctx))
+
+        embed_result = discord.Embed(
+            title=title,
+            description=description,
+            color=color,
+        )
+        embed_result.set_footer(text=footer)
+        await self._send_embed(ctx, embed_result, followup=followup)
 
     async def _handle_account(self, ctx, username: str) -> None:
         if not await self._ensure_allowed_guild(ctx):
@@ -413,8 +479,8 @@ class PSNCog(commands.Cog):
     async def psn_slash_check(
         self,
         ctx: discord.ApplicationContext,
-        product_id: Option(str, description=id_desc),  # type: ignore
         region: Option(str, description=region_desc),  # type: ignore
+        product_id: Option(str, description=id_desc),  # type: ignore
         pdc: Option(str, description=token_desc, default=None),  # type: ignore
         npsso: Option(str, description=npsso_desc, default=None),  # type: ignore
     ) -> None:
@@ -432,14 +498,14 @@ class PSNCog(commands.Cog):
     async def psn_slash_add(
         self,
         ctx: discord.ApplicationContext,
-        product_id: Option(str, description=id_desc),  # type: ignore
         region: Option(str, description=region_desc),  # type: ignore
+        product_id: Option(str, description=id_desc),  # type: ignore
         pdc: Option(str, description=token_desc, default=None),  # type: ignore
         npsso: Option(str, description=npsso_desc, default=None),  # type: ignore
     ) -> None:
         await self._handle_add_or_remove(
             ctx,
-            product_id=product_id,
+            product_ids=[product_id],
             region=region,
             cookie_arg=pdc,
             npsso_arg=npsso,
@@ -452,14 +518,14 @@ class PSNCog(commands.Cog):
     async def psn_slash_remove(
         self,
         ctx: discord.ApplicationContext,
-        product_id: Option(str, description=id_desc),  # type: ignore
         region: Option(str, description=region_desc),  # type: ignore
+        product_id: Option(str, description=id_desc),  # type: ignore
         pdc: Option(str, description=token_desc, default=None),  # type: ignore
         npsso: Option(str, description=npsso_desc, default=None),  # type: ignore
     ) -> None:
         await self._handle_add_or_remove(
             ctx,
-            product_id=product_id,
+            product_ids=[product_id],
             region=region,
             cookie_arg=pdc,
             npsso_arg=npsso,
@@ -515,20 +581,14 @@ class PSNCog(commands.Cog):
         )
 
     @psn_prefix.command(name="add")
-    async def psn_prefix_add(self, ctx: commands.Context, product_id: str, region: str) -> None:
-        if self._prefix_has_extra_args(ctx):
-            await self._send_embed(
-                ctx,
-                discord.Embed(
-                    title="⚠️ Overrides Not Available",
-                    description="Prefix commands only accept `product_id` and `region`. Use `/psn add` if you need to supply NPSSO or PDC overrides.",
-                    color=0xf1c40f,
-                ),
-            )
+    async def psn_prefix_add(self, ctx: commands.Context, *, entries: str = "") -> None:
+        parsed = await self._prepare_prefix_batch(ctx, entries, "add")
+        if parsed is None:
             return
+        region, product_ids = parsed
         await self._handle_add_or_remove(
             ctx,
-            product_id=product_id,
+            product_ids=product_ids,
             region=region,
             cookie_arg=None,
             npsso_arg=None,
@@ -538,20 +598,14 @@ class PSNCog(commands.Cog):
         )
 
     @psn_prefix.command(name="remove")
-    async def psn_prefix_remove(self, ctx: commands.Context, product_id: str, region: str) -> None:
-        if self._prefix_has_extra_args(ctx):
-            await self._send_embed(
-                ctx,
-                discord.Embed(
-                    title="⚠️ Overrides Not Available",
-                    description="Prefix commands only accept `product_id` and `region`. Use `/psn remove` if you need to supply NPSSO or PDC overrides.",
-                    color=0xf1c40f,
-                ),
-            )
+    async def psn_prefix_remove(self, ctx: commands.Context, *, entries: str = "") -> None:
+        parsed = await self._prepare_prefix_batch(ctx, entries, "remove")
+        if parsed is None:
             return
+        region, product_ids = parsed
         await self._handle_add_or_remove(
             ctx,
-            product_id=product_id,
+            product_ids=product_ids,
             region=region,
             cookie_arg=None,
             npsso_arg=None,
@@ -597,20 +651,14 @@ class PSNCog(commands.Cog):
         )
 
     @commands.command(name="add_avatar")
-    async def add_avatar_prefix(self, ctx: commands.Context, product_id: str, region: str) -> None:
-        if self._prefix_has_extra_args(ctx):
-            await self._send_embed(
-                ctx,
-                discord.Embed(
-                    title="⚠️ Overrides Not Available",
-                    description="Prefix commands only accept `product_id` and `region`. Use `/psn add` if you need to supply NPSSO or PDC overrides.",
-                    color=0xf1c40f,
-                ),
-            )
+    async def add_avatar_prefix(self, ctx: commands.Context, *, entries: str = "") -> None:
+        parsed = await self._prepare_prefix_batch(ctx, entries, "add")
+        if parsed is None:
             return
+        region, product_ids = parsed
         await self._handle_add_or_remove(
             ctx,
-            product_id=product_id,
+            product_ids=product_ids,
             region=region,
             cookie_arg=None,
             npsso_arg=None,
@@ -620,20 +668,14 @@ class PSNCog(commands.Cog):
         )
 
     @commands.command(name="remove_avatar")
-    async def remove_avatar_prefix(self, ctx: commands.Context, product_id: str, region: str) -> None:
-        if self._prefix_has_extra_args(ctx):
-            await self._send_embed(
-                ctx,
-                discord.Embed(
-                    title="⚠️ Overrides Not Available",
-                    description="Prefix commands only accept `product_id` and `region`. Use `/psn remove` if you need to supply NPSSO or PDC overrides.",
-                    color=0xf1c40f,
-                ),
-            )
+    async def remove_avatar_prefix(self, ctx: commands.Context, *, entries: str = "") -> None:
+        parsed = await self._prepare_prefix_batch(ctx, entries, "remove")
+        if parsed is None:
             return
+        region, product_ids = parsed
         await self._handle_add_or_remove(
             ctx,
-            product_id=product_id,
+            product_ids=product_ids,
             region=region,
             cookie_arg=None,
             npsso_arg=None,
