@@ -583,9 +583,8 @@ class PSNCog(commands.Cog):
 
 
 def setup(bot: commands.Bot) -> None:
-    cog = PSNCog(os.getenv("NPSSO"), bot, os.getenv("PDC"), os.getenv("GUILD_ID"))
-    bot.add_cog(cog)
     for command in list(bot.application_commands):
         if command.name == "psn":
             bot.remove_application_command(command)
-    bot.add_application_command(cog.psn_group)
+    cog = PSNCog(os.getenv("NPSSO"), bot, os.getenv("PDC"), os.getenv("GUILD_ID"))
+    bot.add_cog(cog)
