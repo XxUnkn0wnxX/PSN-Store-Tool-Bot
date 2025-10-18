@@ -94,9 +94,10 @@ def normalize_region_input(value: str) -> str:
 
 class PSNCog(commands.Cog):
 
-    def __init__(self, secret: str, bot: commands.Bot, default_pdc: str | None = None) -> None:
+    def __init__(self, secret: str, bot: commands.Bot, default_pdc: str | None = None, allowed_guild_id: str | None = None) -> None:
         self.bot = bot
         self.api = PSN(secret, default_pdc)
+        self.allowed_guild_id = allowed_guild_id
 
     psn_group = discord.SlashCommandGroup("psn")
 
@@ -109,6 +110,9 @@ class PSNCog(commands.Cog):
         pdc: Option(str, description=token_desc, required=False),  # type: ignore
         npsso: Option(str, description=npsso_desc, required=False)  # type: ignore
     ) -> None:
+
+        if not await self._ensure_allowed_guild(ctx):
+            return
 
         embed_checking = discord.Embed(
             title="🔍 Checking Avatar...",
@@ -165,6 +169,9 @@ class PSNCog(commands.Cog):
         npsso: Option(str, description=npsso_desc, required=False)  # type: ignore
     ) -> None:
 
+        if not await self._ensure_allowed_guild(ctx):
+            return
+
         embed_adding = discord.Embed(
             title="🛒 Adding to Cart...",
             description="⏳ Please wait while we add your avatar to cart!",
@@ -188,7 +195,8 @@ class PSNCog(commands.Cog):
         if cookie_arg:
             print(f"[psn] Using custom PDC from command for {ctx.author}: {cookie_arg}")
         if npsso_arg:
-            print(f"[psn] Using custom NPSSO from command for {ctx.author}: {npsso_arg}")
+            masked = npsso_arg[:4] + "…" + npsso_arg[-4:] if len(npsso_arg) > 8 else "***"
+            print(f"[psn] Using custom NPSSO from command for {ctx.author}: {masked}")
 
         try:
             await self.api.add_to_cart(request)
@@ -219,6 +227,9 @@ class PSNCog(commands.Cog):
         npsso: Option(str, description=npsso_desc, required=False)  # type: ignore
     ) -> None:
 
+        if not await self._ensure_allowed_guild(ctx):
+            return
+
         embed_removing = discord.Embed(
             title="🗑️ Removing from Cart...",
             description="⏳ Please wait while we remove your avatar from cart!",
@@ -242,7 +253,8 @@ class PSNCog(commands.Cog):
         if cookie_arg:
             print(f"[psn] Using custom PDC from command for {ctx.author}: {cookie_arg}")
         if npsso_arg:
-            print(f"[psn] Using custom NPSSO from command for {ctx.author}: {npsso_arg}")
+            masked = npsso_arg[:4] + "…" + npsso_arg[-4:] if len(npsso_arg) > 8 else "***"
+            print(f"[psn] Using custom NPSSO from command for {ctx.author}: {masked}")
 
         try:
             await self.api.remove_from_cart(request)
@@ -267,6 +279,9 @@ class PSNCog(commands.Cog):
         description="🆔 Gets the account ID from a PSN username.")
     async def account_id(self, ctx: discord.ApplicationContext,
                          username: str) -> None:
+        if not await self._ensure_allowed_guild(ctx):
+            return
+
         embed_searching = discord.Embed(
             title="🔍 Searching User...",
             description=
@@ -291,6 +306,19 @@ class PSNCog(commands.Cog):
         embed_success.set_footer(text="✅ Account ID retrieved successfully!")
         await ctx.edit(embed=embed_success)
 
+    async def _ensure_allowed_guild(self, ctx: discord.ApplicationContext) -> bool:
+        if not self.allowed_guild_id:
+            return True
+        if ctx.guild is None or str(ctx.guild.id) != str(self.allowed_guild_id):
+            embed = discord.Embed(
+                title="🔒 Command Restricted",
+                description="This bot is configured for a specific server and cannot be used here.",
+                color=0xe74c3c,
+            )
+            await ctx.respond(embed=embed)
+            return False
+        return True
+
 
 def setup(bot: commands.Bot) -> None:
-    bot.add_cog(PSNCog(os.getenv("NPSSO"), bot, os.getenv("PDC")))
+    bot.add_cog(PSNCog(os.getenv("NPSSO"), bot, os.getenv("PDC"), os.getenv("GUILD_ID")))

@@ -20,7 +20,7 @@ Before running the bot, you'll need:
 
 - ✅ A valid **NPSSO token** (for PSN API access)
 - ✅ Your **Discord bot token**
-- ✅ Your **Discord server id** (sync up slash commands)
+- ✅ Your **Discord server id** (bot is locked to this server)
 
 ---
 
@@ -99,7 +99,8 @@ Your bot is now live and ready to add avatars or fetch PSN IDs! 🎉
 - Supply your `pdccws_p` cookie at runtime or set it in `.env` as `PDC`. The slash commands will fall back to the `.env` value if you omit the cookie argument.
 - Need to hit a different PlayStation account? Provide an `NPSSO` value in the slash command, otherwise the `.env` `NPSSO` is used.
 
-The bot auto-syncs commands in the guild defined by `GUILD_ID` on startup. Forced syncs and the built-in verifier ensure commands appear even if Discord is slow to propagate them.
+The bot auto-syncs commands in the guild defined by `GUILD_ID` on startup and refuses to run in other servers. Forced syncs and the built-in verifier ensure commands appear even if Discord is slow to propagate them.
+**Important:** This project is intended for single-server/self-hosted setups. Invite the bot only to the server that matches `GUILD_ID`.
 
 ---
 

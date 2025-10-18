@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+import os
 
 tutorialstring = (
     "🎮 **1**. First go to playstation.com\n"
@@ -34,11 +35,14 @@ creditsemb = discord.Embed(
 creditsemb.set_footer(text="🙏 Thank you for using PSNToolBot!")
 
 class Misc(commands.Cog):
-    def __init__(self, bot: commands.Bot) -> None:
+    def __init__(self, bot: commands.Bot, allowed_guild_id: str | None = None) -> None:
         self.bot = bot
+        self.allowed_guild_id = allowed_guild_id
 
     @discord.slash_command(description="🏓 Pings the bot to check latency.")
     async def ping(self, ctx: discord.ApplicationContext) -> None:
+        if not await self._ensure_allowed_guild(ctx):
+            return
         latency = self.bot.latency * 1000
         embed = discord.Embed(
             title="🏓 Pong!",
@@ -50,11 +54,28 @@ class Misc(commands.Cog):
 
     @discord.slash_command(description="📚 Shows how to use the bot.")
     async def tutorial(self, ctx: discord.ApplicationContext) -> None:
+        if not await self._ensure_allowed_guild(ctx):
+            return
         await ctx.respond(embed=tutorialemb)
 
     @discord.slash_command(description="👥 Shows credits and bot information.")
     async def credits(self, ctx: discord.ApplicationContext) -> None:
+        if not await self._ensure_allowed_guild(ctx):
+            return
         await ctx.respond(embed=creditsemb)
 
+    async def _ensure_allowed_guild(self, ctx: discord.ApplicationContext) -> bool:
+        if not self.allowed_guild_id:
+            return True
+        if ctx.guild is None or str(ctx.guild.id) != str(self.allowed_guild_id):
+            embed = discord.Embed(
+                title="🔒 Command Restricted",
+                description="This bot is configured for a specific server and cannot be used here.",
+                color=0xe74c3c,
+            )
+            await ctx.respond(embed=embed)
+            return False
+        return True
+
 def setup(bot: commands.Bot) -> None:
-    bot.add_cog(Misc(bot))
+    bot.add_cog(Misc(bot, os.getenv("GUILD_ID")))
