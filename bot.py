@@ -1,6 +1,7 @@
 import os
 import time
 import argparse
+from math import ceil
 import traceback
 import asyncio
 from collections.abc import Awaitable, Callable
@@ -87,12 +88,13 @@ async def load_extensions() -> None:
 async def ensure_guild_membership(token: str, guild_id: int) -> bool:
     global APPLICATION_ID
 
+    timeout = aiohttp.ClientTimeout(total=15)
     headers = {
         "Authorization": f"Bot {token}",
         "User-Agent": "PSNToolBot/1.0 (https://github.com/XxUnkn0wnxX/PSN-Store-Tool-Bot)"
     }
 
-    async with aiohttp.ClientSession(headers=headers) as session:
+    async with aiohttp.ClientSession(headers=headers, timeout=timeout) as session:
         async with session.get("https://discord.com/api/v10/oauth2/applications/@me") as resp:
             if resp.status != 200:
                 text = await resp.text()
@@ -124,25 +126,40 @@ async def fetch_command_sets(token: str, guild_id: int) -> tuple[set[str], set[s
     if APPLICATION_ID is None:
         raise RuntimeError("Application ID not set; ensure ensure_guild_membership() ran first")
 
+    timeout = aiohttp.ClientTimeout(total=15)
     headers = {
         "Authorization": f"Bot {token}",
         "User-Agent": "PSNToolBot/1.0 (https://github.com/XxUnkn0wnxX/PSN-Store-Tool-Bot)",
     }
 
-    async with aiohttp.ClientSession(headers=headers) as session:
-        async with session.get(f"https://discord.com/api/v10/applications/{APPLICATION_ID}/commands") as resp:
-            if resp.status != 200:
-                text = await resp.text()
-                raise RuntimeError(f"Failed to fetch global commands (status {resp.status}): {text}")
-            global_cmds = {cmd.get("name", "") for cmd in await resp.json()}
+    async def _get_json(session: aiohttp.ClientSession, url: str, retries: int = 3):
+        for attempt in range(retries):
+            async with session.get(url) as resp:
+                if resp.status == 429:
+                    retry_after = resp.headers.get("Retry-After")
+                    delay = float(retry_after) if retry_after is not None else 1.0
+                    delay = max(1.0, min(delay, 10.0))
+                    print(f"[http] 429 on {url}; retrying in {delay:.1f}s (attempt {attempt + 1}/{retries})")
+                    await asyncio.sleep(delay)
+                    continue
+                if resp.status == 404:
+                    return None
+                if resp.status != 200:
+                    text = await resp.text()
+                    raise RuntimeError(f"HTTP {resp.status} for {url}: {text}")
+                return await resp.json()
+        raise RuntimeError(f"Exceeded retries for GET {url}")
 
-        async with session.get(
-            f"https://discord.com/api/v10/applications/{APPLICATION_ID}/guilds/{guild_id}/commands"
-        ) as resp:
-            if resp.status not in (200, 404):
-                text = await resp.text()
-                raise RuntimeError(f"Failed to fetch guild commands (status {resp.status}): {text}")
-            guild_cmds = {cmd.get("name", "") for cmd in await resp.json()} if resp.status == 200 else set()
+    async with aiohttp.ClientSession(headers=headers, timeout=timeout) as session:
+        global_json = await _get_json(
+            session, f"https://discord.com/api/v10/applications/{APPLICATION_ID}/commands"
+        )
+        global_cmds = {cmd.get("name", "") for cmd in (global_json or [])}
+
+        guild_json = await _get_json(
+            session, f"https://discord.com/api/v10/applications/{APPLICATION_ID}/guilds/{guild_id}/commands"
+        )
+        guild_cmds = {cmd.get("name", "") for cmd in guild_json} if guild_json is not None else set()
 
     return global_cmds, guild_cmds
 
@@ -157,34 +174,35 @@ async def wait_for_command_sets(
     retry_callback: Callable[[set[str], set[str]], Awaitable[None]] | None = None,
     max_attempts: int = 5,
 ) -> bool:
-    attempts = 0
-    while attempts < max_attempts:
-        deadline = time.monotonic() + timeout
-        existing_global, existing_guild = await fetch_command_sets(token, guild_id)
+    for attempt in range(1, max_attempts + 1):
+        end_at = time.monotonic() + timeout
+        while time.monotonic() < end_at:
+            existing_global, existing_guild = await fetch_command_sets(token, guild_id)
+            missing_global = expected_global - existing_global
+            missing_guild = expected_guild - existing_guild
 
-        missing_global = expected_global - existing_global
-        missing_guild = expected_guild - existing_guild
+            if not missing_global and not missing_guild:
+                return True
 
-        if not missing_global and not missing_guild:
-            return True
+            remaining = max(0.0, end_at - time.monotonic())
+            print(
+                "[sync] Verifying (retry in "
+                f"{interval:.0f}s, {ceil(remaining)}s left)… "
+                f"missing_global={sorted(missing_global)} "
+                f"missing_guild={sorted(missing_guild)}",
+                flush=True,
+            )
+            await asyncio.sleep(interval)
 
-        if time.monotonic() >= deadline:
-            if missing_global:
-                print(f"[sync] Global commands still missing after timeout: {sorted(missing_global)}")
-            if missing_guild:
-                print(f"[sync] Guild commands still missing after timeout: {sorted(missing_guild)}")
-            attempts += 1
-            if retry_callback is not None:
-                print(f"[sync] Re-attempting manual sync (attempt {attempts}/{max_attempts})…", flush=True)
-                try:
-                    await retry_callback(missing_global, missing_guild)
-                except Exception as exc:
-                    print(f"[sync] Retry sync failed: {exc}", flush=True)
-            continue
+        if retry_callback is not None:
+            print(f"[sync] Attempt {attempt}/{max_attempts} timed out — retrying manual sync…", flush=True)
+            try:
+                await retry_callback(missing_global, missing_guild)
+            except Exception as exc:
+                print(f"[sync] Retry sync failed: {exc}", flush=True)
+        else:
+            print(f"[sync] Attempt {attempt}/{max_attempts} timed out.", flush=True)
 
-        remaining = max(0, deadline - time.monotonic())
-        print(f"[sync] Command verification ongoing (retry in {interval:.0f}s, {remaining:.0f}s left)…", flush=True)
-        await asyncio.sleep(interval)
     print("[sync] Command verification failed after maximum attempts.", flush=True)
     return False
 
