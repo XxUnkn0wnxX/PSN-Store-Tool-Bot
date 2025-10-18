@@ -20,6 +20,7 @@ Before running the bot, you'll need:
 
 - ✅ A valid **NPSSO token** (for PSN API access)
 - ✅ Your **Discord bot token**
+- ✅ Your **Discord server id** (sync up slash commands)
 
 ---
 
@@ -61,17 +62,41 @@ Then edit `.env` with your credentials:
 ```
 TOKEN=your_discord_bot_token
 NPSSO=your_64_char_npsso_token
+GUILD_ID=your_discord_server_id
 ```
+
+---
+
+## 🛡️ Discord Bot Configuration
+
+In the [Discord Developer Portal](https://discord.com/developers/applications):
+
+- Enable the **Message Content Intent** under *Privileged Gateway Intents*.
+- Grab the **Server ID** of the guild where you want to test slash commands and set `GUILD_ID` in `.env`.
+- Generate an OAuth2 URL with the following scopes:
+
+  ```
+  bot
+  applications.commands
+  ```
+
+  Add extra permission bits (e.g. Administrator) if your server setup requires them.
 
 ---
 
 ## ▶️ Run the Bot
 
 ```bash
-python bot.py
+python3 bot.py
 ```
 
 Your bot is now live and ready to add avatars or fetch PSN IDs! 🎉
+
+### Optional CLI flags
+
+- `python3 bot.py --force-sync` – Force a full slash-command resync even if commands already exist in Discord. Handy after you change command definitions and want them refreshed immediately.
+
+The bot auto-syncs commands in the guild defined by `GUILD_ID` on startup. Forced syncs and the built-in verifier ensure commands appear even if Discord is slow to propagate them.
 
 ---
 
@@ -85,6 +110,7 @@ Open an [issue](https://github.com/yourusername/PSNToolBot/issues) or submit a p
 ## 🧾 Credits
 
 - 👨‍💻 **Bot Developer**: [𐌔𐌉𐌂𐌊.dll](https://github.com/sickfff)
+- 🛠️ **Bot Maintainer**: [OpenAI](https://openai.com/codex/)
 - 🧠 Inspired by tools and ideas shared within the **PS3 modding & dev community**
 - 📘 Special thanks to contributors and open-source libraries that made this possible
 
