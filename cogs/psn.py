@@ -51,10 +51,10 @@ class PSNCog(commands.Cog):
     async def check_avatar(
         self,
         ctx: discord.ApplicationContext,
-        pdc: Option(str, description=token_desc, required=False),  # type: ignore
-        npsso: Option(str, description=npsso_desc, required=False),  # type: ignore
         product_id: Option(str, description=id_desc),  # type: ignore
-        region: Option(str, description=region_desc)  # type: ignore
+        region: Option(str, description=region_desc),  # type: ignore
+        pdc: Option(str, description=token_desc, required=False),  # type: ignore
+        npsso: Option(str, description=npsso_desc, required=False)  # type: ignore
     ) -> None:
 
         embed_checking = discord.Embed(
@@ -98,10 +98,10 @@ class PSNCog(commands.Cog):
     async def add_avatar(
         self,
         ctx: discord.ApplicationContext,
-        pdc: Option(str, description=token_desc, required=False),  # type: ignore
-        npsso: Option(str, description=npsso_desc, required=False),  # type: ignore
         product_id: Option(str, description=id_desc),  # type: ignore
-        region: Option(str, description=region_desc)  # type: ignore
+        region: Option(str, description=region_desc),  # type: ignore
+        pdc: Option(str, description=token_desc, required=False),  # type: ignore
+        npsso: Option(str, description=npsso_desc, required=False)  # type: ignore
     ) -> None:
 
         embed_adding = discord.Embed(
@@ -145,10 +145,10 @@ class PSNCog(commands.Cog):
     async def remove_avatar(
         self,
         ctx: discord.ApplicationContext,
-        pdc: Option(str, description=token_desc, required=False),  # type: ignore
-        npsso: Option(str, description=npsso_desc, required=False),  # type: ignore
         product_id: Option(str, description=id_desc),  # type: ignore
-        region: Option(str, description=region_desc)  # type: ignore
+        region: Option(str, description=region_desc),  # type: ignore
+        pdc: Option(str, description=token_desc, required=False),  # type: ignore
+        npsso: Option(str, description=npsso_desc, required=False)  # type: ignore
     ) -> None:
 
         embed_removing = discord.Embed(
