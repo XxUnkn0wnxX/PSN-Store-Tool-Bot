@@ -92,6 +92,12 @@ python3 bot.py
 
 Your bot is now live and ready to add avatars or fetch PSN IDs! 🎉
 
+### Optional CLI flags
+
+- `python3 bot.py --force-sync` – Force a full slash-command resync even if commands already exist in Discord. Handy after you change command definitions and want them refreshed immediately.
+
+The bot auto-syncs commands in the guild defined by `GUILD_ID` on startup. Forced syncs and the built-in verifier ensure commands appear even if Discord is slow to propagate them.
+
 ---
 
 ## 💬 Support & Feedback
@@ -110,4 +116,3 @@ Open an [issue](https://github.com/yourusername/PSNToolBot/issues) or submit a p
 ---
 
 <p align="center"><b>Built with 💻, ☕, and 🎮 by 𐌔𐌉𐌂𐌊.dll</b></p>
-
