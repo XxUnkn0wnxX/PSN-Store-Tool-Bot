@@ -306,7 +306,10 @@ async def main(args: argparse.Namespace) -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="PSN Tool Bot")
+    parser = argparse.ArgumentParser(
+        description="Run PSNToolBot with optional command sync controls.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
     parser.add_argument(
         "--force-sync",
         dest="force_sync",
