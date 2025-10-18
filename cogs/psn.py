@@ -33,16 +33,16 @@ invalid_region = discord.Embed(
     "🌍 Please use a valid region code (e.g., 'en-US', 'en-GB', 'fr-FR')",
     color=0xe74c3c)
 
-token_desc = "pdccws_p cookie"
+token_desc = "pdccws_p cookie (leave blank to use default)"
 id_desc = "ID from psprices product_id command"
 region_desc = "For example 'en-US', check 'playstation.com'"
 
 
 class PSNCog(commands.Cog):
 
-    def __init__(self, secret: str, bot: commands.Bot) -> None:
+    def __init__(self, secret: str, bot: commands.Bot, default_pdc: str | None = None) -> None:
         self.bot = bot
-        self.api = PSN(secret)
+        self.api = PSN(secret, default_pdc)
 
     psn_group = discord.SlashCommandGroup("psn")
 
@@ -50,7 +50,7 @@ class PSNCog(commands.Cog):
     async def check_avatar(
         self,
         ctx: discord.ApplicationContext,
-        pdccws_p: Option(str, description=token_desc),  # type: ignore
+        pdccws_p: Option(str, description=token_desc, required=False),  # type: ignore
         product_id: Option(str, description=id_desc),  # type: ignore
         region: Option(str, description=region_desc)  # type: ignore
     ) -> None:
@@ -65,7 +65,9 @@ class PSNCog(commands.Cog):
             await ctx.respond(embed=invalid_region, ephemeral=True)
             return
 
-        request = PSNRequest(pdccws_p=pdccws_p,
+        cookie_arg = pdccws_p or None
+
+        request = PSNRequest(pdccws_p=cookie_arg,
                              region=region,
                              product_id=product_id)
 
@@ -92,7 +94,7 @@ class PSNCog(commands.Cog):
     async def add_avatar(
         self,
         ctx: discord.ApplicationContext,
-        pdccws_p: Option(str, description=token_desc),  # type: ignore
+        pdccws_p: Option(str, description=token_desc, required=False),  # type: ignore
         product_id: Option(str, description=id_desc),  # type: ignore
         region: Option(str, description=region_desc)  # type: ignore
     ) -> None:
@@ -107,7 +109,9 @@ class PSNCog(commands.Cog):
             await ctx.respond(embed=invalid_region, ephemeral=True)
             return
 
-        request = PSNRequest(pdccws_p=pdccws_p,
+        cookie_arg = pdccws_p or None
+
+        request = PSNRequest(pdccws_p=cookie_arg,
                              region=region,
                              product_id=product_id)
 
@@ -134,7 +138,7 @@ class PSNCog(commands.Cog):
     async def remove_avatar(
         self,
         ctx: discord.ApplicationContext,
-        pdccws_p: Option(str, description=token_desc),  # type: ignore
+        pdccws_p: Option(str, description=token_desc, required=False),  # type: ignore
         product_id: Option(str, description=id_desc),  # type: ignore
         region: Option(str, description=region_desc)  # type: ignore
     ) -> None:
@@ -149,7 +153,9 @@ class PSNCog(commands.Cog):
             await ctx.respond(embed=invalid_region, ephemeral=True)
             return
 
-        request = PSNRequest(pdccws_p=pdccws_p,
+        cookie_arg = pdccws_p or None
+
+        request = PSNRequest(pdccws_p=cookie_arg,
                              region=region,
                              product_id=product_id)
 
@@ -202,4 +208,4 @@ class PSNCog(commands.Cog):
 
 
 def setup(bot: commands.Bot) -> None:
-    bot.add_cog(PSNCog(os.getenv("NPSSO"), bot))
+    bot.add_cog(PSNCog(os.getenv("NPSSO"), bot, os.getenv("PDC")))
