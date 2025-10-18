@@ -105,8 +105,16 @@ async def main() -> None:
         print("[warn] NPSSO not set; PSN commands may error at runtime.")
     await load_extensions()
     print("Starting bot...")
-    await bot.start(token)
+    try:
+        await bot.start(token)
+    finally:
+        if bot.is_closed():
+            return
+        await bot.close()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\nShutting down gracefully…")
