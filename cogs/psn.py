@@ -1,7 +1,6 @@
 import discord
 import os
 from discord.ext import commands
-from discord import Option
 from api.common import APIError
 from api.psn import PSN, PSNRequest
 from psnawp_api.core.psnawp_exceptions import PSNAWPNotFoundError as PSNAWPNotFound
@@ -156,40 +155,52 @@ class PSNCog(commands.Cog):
         embed.set_footer(text="Need help? Run /tutorial for step-by-step token instructions.")
         return embed
 
-    psn_group = discord.SlashCommandGroup("psn")
+    def _is_app_context(self, ctx) -> bool:
+        return isinstance(ctx, discord.ApplicationContext)
 
-    @psn_group.command(description="🔍 Checks an avatar for you.")
-    async def check_avatar(
+    async def _send_embed(self, ctx, embed: discord.Embed, *, followup: bool = False) -> None:
+        if self._is_app_context(ctx):
+            app_ctx = ctx  # type: ignore[assignment]
+            if followup or app_ctx.response.is_done():
+                await app_ctx.followup.send(embed=embed)
+            else:
+                await app_ctx.respond(embed=embed)
+        else:
+            await ctx.send(embed=embed)
+
+    async def _handle_check(
         self,
-        ctx: discord.ApplicationContext,
-        product_id: Option(str, description=id_desc),  # type: ignore
-        region: Option(str, description=region_desc),  # type: ignore
-        pdc: Option(str, description=token_desc, required=False),  # type: ignore
-        npsso: Option(str, description=npsso_desc, required=False)  # type: ignore
+        ctx,
+        product_id: str,
+        region: str,
+        cookie_arg: str | None = None,
+        npsso_arg: str | None = None,
+        *,
+        cookie_override: bool = False,
+        npsso_override: bool = False,
     ) -> None:
-
         if not await self._ensure_allowed_guild(ctx):
             return
-
-        embed_checking = discord.Embed(
-            title="🔍 Checking Avatar...",
-            description="⏳ Please wait while we fetch your avatar!",
-            color=0xffa726)
-        await ctx.respond(embed=embed_checking)
 
         try:
             region = normalize_region_input(region)
         except APIError as e:
-            await ctx.respond(embed=discord.Embed(title="❌ Invalid Region", description=f"🚫 {e}", color=0xe74c3c))
+            await self._send_embed(
+                ctx,
+                discord.Embed(
+                    title="❌ Invalid Region",
+                    description=f"🚫 {e}",
+                    color=0xe74c3c,
+                ),
+            )
             return
 
-        cookie_arg = pdc or None
-        npsso_arg = npsso or None
-
-        request = PSNRequest(region=region,
-                             product_id=product_id,
-                             pdccws_p=cookie_arg,
-                             npsso=npsso_arg)
+        request = PSNRequest(
+            region=region,
+            product_id=product_id,
+            pdccws_p=cookie_arg,
+            npsso=npsso_arg,
+        )
 
         if cookie_arg:
             print(f"[psn] Using custom PDC from command for {ctx.author}: {mask_value(cookie_arg)}")
@@ -197,20 +208,28 @@ class PSNCog(commands.Cog):
             masked = npsso_arg[:4] + "…" + npsso_arg[-4:] if len(npsso_arg) > 8 else "***"
             print(f"[psn] Using custom NPSSO from command for {ctx.author}: {masked}")
 
+        await self._send_embed(
+            ctx,
+            discord.Embed(
+                title="🔍 Checking Avatar...",
+                description="⏳ Please wait while we fetch your avatar!",
+                color=0xffa726,
+            ),
+        )
+
         try:
             avatar_url = await self.api.check_avatar(request)
         except APIError as e:
             message = e.message if getattr(e, "message", None) else str(e)
+            followup = self._is_app_context(ctx)
             if getattr(e, "code", None) == "auth":
                 hints = getattr(e, "hints", {}) or {}
                 need_cookie = hints.get("cookie", True)
                 need_npsso = hints.get("npsso", True)
-                if not (need_cookie or need_npsso):
-                    need_cookie = need_npsso = True
                 embed_error = self._auth_error_embed(
                     message,
-                    cookie_arg is not None,
-                    npsso_arg is not None,
+                    cookie_override,
+                    npsso_override,
                     need_cookie,
                     need_npsso,
                 )
@@ -221,374 +240,288 @@ class PSNCog(commands.Cog):
                     color=0xe74c3c,
                 )
                 embed_error.set_footer(text="💡 Check your inputs and try again!")
-            await ctx.respond(embed=embed_error)
+            await self._send_embed(ctx, embed_error, followup=followup)
             return
 
         embed_success = discord.Embed(
             title="✅ Avatar Found!",
             description="🖼️ Here's your PlayStation avatar preview:",
-            color=0x27ae60)
+            color=0x27ae60,
+        )
         embed_success.set_image(url=avatar_url)
         embed_success.set_footer(text="🎮 Ready to add to cart!")
-        await ctx.respond(embed=embed_success)
+        await self._send_embed(ctx, embed_success, followup=self._is_app_context(ctx))
+
+    async def _handle_add_or_remove(
+        self,
+        ctx,
+        *,
+        product_id: str,
+        region: str,
+        cookie_arg: str | None,
+        npsso_arg: str | None,
+        cookie_override: bool,
+        npsso_override: bool,
+        operation: str,
+    ) -> None:
+        if not await self._ensure_allowed_guild(ctx):
+            return
+
+        try:
+            region = normalize_region_input(region)
+        except APIError as e:
+            await self._send_embed(
+                ctx,
+                discord.Embed(
+                    title="❌ Invalid Region",
+                    description=f"🚫 {e}",
+                    color=0xe74c3c,
+                ),
+            )
+            return
+
+        request = PSNRequest(
+            region=region,
+            product_id=product_id,
+            pdccws_p=cookie_arg,
+            npsso=npsso_arg,
+        )
+
+        if cookie_arg:
+            print(f"[psn] Using custom PDC from command for {ctx.author}: {mask_value(cookie_arg)}")
+        if npsso_arg:
+            masked = npsso_arg[:4] + "…" + npsso_arg[-4:] if len(npsso_arg) > 8 else "***"
+            print(f"[psn] Using custom NPSSO from command for {ctx.author}: {masked}")
+
+        action_text = "Adding to Cart" if operation == "add" else "Removing from Cart"
+        progress_description = (
+            "⏳ Please wait while we add your avatar to cart!"
+            if operation == "add"
+            else "⏳ Please wait while we remove your avatar from cart!"
+        )
+
+        await self._send_embed(
+            ctx,
+            discord.Embed(
+                title=f"{'🛒' if operation == 'add' else '🗑️'} {action_text}...",
+                description=progress_description,
+                color=0xf39c12,
+            ),
+        )
+
+        try:
+            if operation == "add":
+                await self.api.add_to_cart(request)
+            else:
+                await self.api.remove_from_cart(request)
+        except APIError as e:
+            message = e.message if getattr(e, "message", None) else str(e)
+            followup = self._is_app_context(ctx)
+            if getattr(e, "code", None) == "auth":
+                hints = getattr(e, "hints", {}) or {}
+                need_cookie = hints.get("cookie", True)
+                need_npsso = hints.get("npsso", True)
+                embed_error = self._auth_error_embed(
+                    message,
+                    cookie_override,
+                    npsso_override,
+                    need_cookie,
+                    need_npsso,
+                )
+            else:
+                title = "❌ Failed to Add" if operation == "add" else "❌ Failed to Remove"
+                footer = (
+                    "💡 Make sure your token and product ID are correct!"
+                    if operation == "add"
+                    else "💡 Make sure the item is in your cart!"
+                )
+                embed_error = discord.Embed(
+                    title=title,
+                    description=f"🚫 {message}",
+                    color=0xe74c3c,
+                )
+                embed_error.set_footer(text=footer)
+            await self._send_embed(ctx, embed_error, followup=followup)
+            return
+
+        if operation == "add":
+            success_title = "✅ Added Successfully!"
+            success_description = f"🛒 **{product_id}** has been added to your cart!"
+            footer = "🎮 Check your PlayStation Store cart!"
+        else:
+            success_title = "✅ Removed Successfully!"
+            success_description = f"🗑️ **{product_id}** has been removed from your cart!"
+            footer = "🎮 Item removed from PlayStation Store cart!"
+
+        embed_success = discord.Embed(
+            title=success_title,
+            description=success_description,
+            color=0x27ae60,
+        )
+        embed_success.set_footer(text=footer)
+        await self._send_embed(ctx, embed_success, followup=self._is_app_context(ctx))
+
+    async def _handle_account(self, ctx, username: str) -> None:
+        if not await self._ensure_allowed_guild(ctx):
+            return
+
+        await self._send_embed(
+            ctx,
+            discord.Embed(
+                title="🔍 Searching User...",
+                description=f"⏳ Looking up **{username}** on PlayStation Network...",
+                color=0xf39c12,
+            ),
+        )
+
+        try:
+            accid = await self.api.obtain_account_id(username)
+        except APIError as e:
+            embed_error = discord.Embed(
+                title="❌ User Not Found",
+                description=f"🚫 {e}",
+                color=0xe74c3c,
+            )
+            embed_error.set_footer(text="💡 Check the username and try again!")
+            await self._send_embed(ctx, embed_error, followup=self._is_app_context(ctx))
+            return
+
+        embed_success = discord.Embed(
+            title=f"🎮 {username}",
+            description=f"🆔 **Account ID:** `{accid}`",
+            color=0x27ae60,
+        )
+        embed_success.set_footer(text="✅ Account ID retrieved successfully!")
+        await self._send_embed(ctx, embed_success, followup=self._is_app_context(ctx))
+
+    @commands.hybrid_group(
+        name="psn",
+        description="PlayStation Store avatar utilities.",
+        invoke_without_command=True,
+    )
+    async def psn(self, ctx: commands.Context) -> None:
+        if not await self._ensure_allowed_guild(ctx):
+            return
+
+        if ctx.invoked_subcommand is None:
+            embed = discord.Embed(
+                title="🎮 PSN Commands",
+                description=(
+                    "Use `/psn check`, `/psn add`, `/psn remove`, or `/psn account`.\n"
+                    "Prefix usage: `$psn <subcommand>` or legacy aliases like `$check_avatar`."
+                ),
+                color=0x3498db,
+            )
+            await self._send_embed(ctx, embed)
+
+    @psn.command(name="check", description="🔍 Checks an avatar for you.")
+    async def psn_check(
+        self,
+        ctx: commands.Context,
+        product_id: str = commands.Param(description=id_desc),
+        region: str = commands.Param(description=region_desc),
+        pdc: str | None = commands.Param(default=None, description=token_desc, name="pdc"),
+        npsso: str | None = commands.Param(default=None, description=npsso_desc, name="npsso"),
+    ) -> None:
+        await self._handle_check(
+            ctx,
+            product_id=product_id,
+            region=region,
+            cookie_arg=pdc,
+            npsso_arg=npsso,
+            cookie_override=pdc is not None,
+            npsso_override=npsso is not None,
+        )
+
+    @psn.command(name="add", description="🛒 Adds the avatar you input into your cart.")
+    async def psn_add(
+        self,
+        ctx: commands.Context,
+        product_id: str = commands.Param(description=id_desc),
+        region: str = commands.Param(description=region_desc),
+        pdc: str | None = commands.Param(default=None, description=token_desc, name="pdc"),
+        npsso: str | None = commands.Param(default=None, description=npsso_desc, name="npsso"),
+    ) -> None:
+        await self._handle_add_or_remove(
+            ctx,
+            product_id=product_id,
+            region=region,
+            cookie_arg=pdc,
+            npsso_arg=npsso,
+            cookie_override=pdc is not None,
+            npsso_override=npsso is not None,
+            operation="add",
+        )
+
+    @psn.command(name="remove", description="🗑️ Removes the avatar you input from your cart.")
+    async def psn_remove(
+        self,
+        ctx: commands.Context,
+        product_id: str = commands.Param(description=id_desc),
+        region: str = commands.Param(description=region_desc),
+        pdc: str | None = commands.Param(default=None, description=token_desc, name="pdc"),
+        npsso: str | None = commands.Param(default=None, description=npsso_desc, name="npsso"),
+    ) -> None:
+        await self._handle_add_or_remove(
+            ctx,
+            product_id=product_id,
+            region=region,
+            cookie_arg=pdc,
+            npsso_arg=npsso,
+            cookie_override=pdc is not None,
+            npsso_override=npsso is not None,
+            operation="remove",
+        )
+
+    @psn.command(name="account", description="🆔 Gets the account ID from a PSN username.")
+    async def psn_account(
+        self,
+        ctx: commands.Context,
+        username: str = commands.Param(description="PSN username to resolve."),
+    ) -> None:
+        await self._handle_account(ctx, username)
 
     @commands.command(name="check_avatar")
     async def check_avatar_prefix(self, ctx: commands.Context, product_id: str, region: str) -> None:
-        if not await self._ensure_allowed_guild(ctx):
-            return
-
-        try:
-            region = normalize_region_input(region)
-        except APIError as e:
-            await ctx.send(embed=discord.Embed(title="❌ Invalid Region", description=f"🚫 {e}", color=0xe74c3c))
-            return
-
-        request = PSNRequest(region=region, product_id=product_id)
-
-        try:
-            avatar_url = await self.api.check_avatar(request)
-        except APIError as e:
-            message = e.message if getattr(e, "message", None) else str(e)
-            if getattr(e, "code", None) == "auth":
-                hints = getattr(e, "hints", {}) or {}
-                need_cookie = hints.get("cookie", True)
-                need_npsso = hints.get("npsso", True)
-                if not (need_cookie or need_npsso):
-                    need_cookie = need_npsso = True
-                embed_error = self._auth_error_embed(
-                    message,
-                    False,
-                    False,
-                    need_cookie,
-                    need_npsso,
-                )
-            else:
-                embed_error = discord.Embed(
-                    title="❌ Error Occurred",
-                    description=f"🚫 {message}",
-                    color=0xe74c3c,
-                )
-                embed_error.set_footer(text="💡 Check your inputs and try again!")
-            await ctx.send(embed=embed_error)
-            return
-
-        embed_success = discord.Embed(
-            title="✅ Avatar Found!",
-            description="🖼️ Here's your PlayStation avatar preview:",
-            color=0x27ae60,
+        await self._handle_check(
+            ctx,
+            product_id=product_id,
+            region=region,
+            cookie_arg=None,
+            npsso_arg=None,
+            cookie_override=False,
+            npsso_override=False,
         )
-        embed_success.set_image(url=avatar_url)
-        embed_success.set_footer(text="🎮 Ready to add to cart!")
-        await ctx.send(embed=embed_success)
-
-    @psn_group.command(
-        description="🛒 Adds the avatar you input into your cart.")
-    async def add_avatar(
-        self,
-        ctx: discord.ApplicationContext,
-        product_id: Option(str, description=id_desc),  # type: ignore
-        region: Option(str, description=region_desc),  # type: ignore
-        pdc: Option(str, description=token_desc, required=False),  # type: ignore
-        npsso: Option(str, description=npsso_desc, required=False)  # type: ignore
-    ) -> None:
-
-        if not await self._ensure_allowed_guild(ctx):
-            return
-
-        embed_adding = discord.Embed(
-            title="🛒 Adding to Cart...",
-            description="⏳ Please wait while we add your avatar to cart!",
-            color=0xf39c12)
-        await ctx.respond(embed=embed_adding)
-
-        try:
-            region = normalize_region_input(region)
-        except APIError as e:
-            await ctx.respond(embed=discord.Embed(title="❌ Invalid Region", description=f"🚫 {e}", color=0xe74c3c))
-            return
-
-        cookie_arg = pdc or None
-        npsso_arg = npsso or None
-
-        request = PSNRequest(region=region,
-                             product_id=product_id,
-                             pdccws_p=cookie_arg,
-                             npsso=npsso_arg)
-
-        if cookie_arg:
-            print(f"[psn] Using custom PDC from command for {ctx.author}: {mask_value(cookie_arg)}")
-        if npsso_arg:
-            masked = npsso_arg[:4] + "…" + npsso_arg[-4:] if len(npsso_arg) > 8 else "***"
-            print(f"[psn] Using custom NPSSO from command for {ctx.author}: {masked}")
-
-        try:
-            await self.api.add_to_cart(request)
-        except APIError as e:
-            message = e.message if getattr(e, "message", None) else str(e)
-            if getattr(e, "code", None) == "auth":
-                hints = getattr(e, "hints", {}) or {}
-                need_cookie = hints.get("cookie", True)
-                need_npsso = hints.get("npsso", True)
-                if not (need_cookie or need_npsso):
-                    need_cookie = need_npsso = True
-                embed_error = self._auth_error_embed(
-                    message,
-                    cookie_arg is not None,
-                    npsso_arg is not None,
-                    need_cookie,
-                    need_npsso,
-                )
-            else:
-                embed_error = discord.Embed(
-                    title="❌ Failed to Add",
-                    description=f"🚫 {message}",
-                    color=0xe74c3c,
-                )
-                embed_error.set_footer(
-                    text="💡 Make sure your token and product ID are correct!"
-                )
-            await ctx.respond(embed=embed_error)
-            return
-
-        embed_success = discord.Embed(
-            title="✅ Added Successfully!",
-            description=f"🛒 **{product_id}** has been added to your cart!",
-            color=0x27ae60)
-        embed_success.set_footer(text="🎮 Check your PlayStation Store cart!")
-        await ctx.respond(embed=embed_success)
 
     @commands.command(name="add_avatar")
     async def add_avatar_prefix(self, ctx: commands.Context, product_id: str, region: str) -> None:
-        if not await self._ensure_allowed_guild(ctx):
-            return
-
-        try:
-            region = normalize_region_input(region)
-        except APIError as e:
-            await ctx.send(embed=discord.Embed(title="❌ Invalid Region", description=f"🚫 {e}", color=0xe74c3c))
-            return
-
-        request = PSNRequest(region=region, product_id=product_id)
-
-        try:
-            await self.api.add_to_cart(request)
-        except APIError as e:
-            message = e.message if getattr(e, "message", None) else str(e)
-            if getattr(e, "code", None) == "auth":
-                hints = getattr(e, "hints", {}) or {}
-                need_cookie = hints.get("cookie", True)
-                need_npsso = hints.get("npsso", True)
-                if not (need_cookie or need_npsso):
-                    need_cookie = need_npsso = True
-                embed_error = self._auth_error_embed(
-                    message,
-                    False,
-                    False,
-                    need_cookie,
-                    need_npsso,
-                )
-            else:
-                embed_error = discord.Embed(
-                    title="❌ Failed to Add",
-                    description=f"🚫 {message}",
-                    color=0xe74c3c,
-                )
-                embed_error.set_footer(text="💡 Make sure your token and product ID are correct!")
-            await ctx.send(embed=embed_error)
-            return
-
-        embed_success = discord.Embed(
-            title="✅ Added Successfully!",
-            description=f"🛒 **{product_id}** has been added to your cart!",
-            color=0x27ae60,
+        await self._handle_add_or_remove(
+            ctx,
+            product_id=product_id,
+            region=region,
+            cookie_arg=None,
+            npsso_arg=None,
+            cookie_override=False,
+            npsso_override=False,
+            operation="add",
         )
-        embed_success.set_footer(text="🎮 Check your PlayStation Store cart!")
-        await ctx.send(embed=embed_success)
-
-    @psn_group.command(
-        description="🗑️ Removes the avatar you input from your cart.")
-    async def remove_avatar(
-        self,
-        ctx: discord.ApplicationContext,
-        product_id: Option(str, description=id_desc),  # type: ignore
-        region: Option(str, description=region_desc),  # type: ignore
-        pdc: Option(str, description=token_desc, required=False),  # type: ignore
-        npsso: Option(str, description=npsso_desc, required=False)  # type: ignore
-    ) -> None:
-
-        if not await self._ensure_allowed_guild(ctx):
-            return
-
-        embed_removing = discord.Embed(
-            title="🗑️ Removing from Cart...",
-            description="⏳ Please wait while we remove your avatar from cart!",
-            color=0xf39c12)
-        await ctx.respond(embed=embed_removing)
-
-        try:
-            region = normalize_region_input(region)
-        except APIError as e:
-            await ctx.respond(embed=discord.Embed(title="❌ Invalid Region", description=f"🚫 {e}", color=0xe74c3c))
-            return
-
-        cookie_arg = pdc or None
-        npsso_arg = npsso or None
-
-        request = PSNRequest(region=region,
-                             product_id=product_id,
-                             pdccws_p=cookie_arg,
-                             npsso=npsso_arg)
-
-        if cookie_arg:
-            print(f"[psn] Using custom PDC from command for {ctx.author}: {mask_value(cookie_arg)}")
-        if npsso_arg:
-            masked = npsso_arg[:4] + "…" + npsso_arg[-4:] if len(npsso_arg) > 8 else "***"
-            print(f"[psn] Using custom NPSSO from command for {ctx.author}: {masked}")
-
-        try:
-            await self.api.remove_from_cart(request)
-        except APIError as e:
-            message = e.message if getattr(e, "message", None) else str(e)
-            if getattr(e, "code", None) == "auth":
-                hints = getattr(e, "hints", {}) or {}
-                need_cookie = hints.get("cookie", True)
-                need_npsso = hints.get("npsso", True)
-                if not (need_cookie or need_npsso):
-                    need_cookie = need_npsso = True
-                embed_error = self._auth_error_embed(
-                    message,
-                    cookie_arg is not None,
-                    npsso_arg is not None,
-                    need_cookie,
-                    need_npsso,
-                )
-            else:
-                embed_error = discord.Embed(
-                    title="❌ Failed to Remove",
-                    description=f"🚫 {message}",
-                    color=0xe74c3c,
-                )
-                embed_error.set_footer(
-                    text="💡 Make sure the item is in your cart!"
-                )
-            await ctx.respond(embed=embed_error)
-            return
-
-        embed_success = discord.Embed(
-            title="✅ Removed Successfully!",
-            description=f"🗑️ **{product_id}** has been removed from your cart!",
-            color=0x27ae60)
-        embed_success.set_footer(
-            text="🎮 Item removed from PlayStation Store cart!")
-        await ctx.respond(embed=embed_success)
 
     @commands.command(name="remove_avatar")
     async def remove_avatar_prefix(self, ctx: commands.Context, product_id: str, region: str) -> None:
-        if not await self._ensure_allowed_guild(ctx):
-            return
-
-        try:
-            region = normalize_region_input(region)
-        except APIError as e:
-            await ctx.send(embed=discord.Embed(title="❌ Invalid Region", description=f"🚫 {e}", color=0xe74c3c))
-            return
-
-        request = PSNRequest(region=region, product_id=product_id)
-
-        try:
-            await self.api.remove_from_cart(request)
-        except APIError as e:
-            message = e.message if getattr(e, "message", None) else str(e)
-            if getattr(e, "code", None) == "auth":
-                hints = getattr(e, "hints", {}) or {}
-                need_cookie = hints.get("cookie", True)
-                need_npsso = hints.get("npsso", True)
-                if not (need_cookie or need_npsso):
-                    need_cookie = need_npsso = True
-                embed_error = self._auth_error_embed(
-                    message,
-                    False,
-                    False,
-                    need_cookie,
-                    need_npsso,
-                )
-            else:
-                embed_error = discord.Embed(
-                    title="❌ Failed to Remove",
-                    description=f"🚫 {message}",
-                    color=0xe74c3c,
-                )
-                embed_error.set_footer(text="💡 Make sure the item is in your cart!")
-            await ctx.send(embed=embed_error)
-            return
-
-        embed_success = discord.Embed(
-            title="✅ Removed Successfully!",
-            description=f"🗑️ **{product_id}** has been removed from your cart!",
-            color=0x27ae60,
+        await self._handle_add_or_remove(
+            ctx,
+            product_id=product_id,
+            region=region,
+            cookie_arg=None,
+            npsso_arg=None,
+            cookie_override=False,
+            npsso_override=False,
+            operation="remove",
         )
-        embed_success.set_footer(text="🎮 Item removed from PlayStation Store cart!")
-        await ctx.send(embed=embed_success)
-
-    @psn_group.command(
-        description="🆔 Gets the account ID from a PSN username.")
-    async def account_id(self, ctx: discord.ApplicationContext,
-                         username: str) -> None:
-        if not await self._ensure_allowed_guild(ctx):
-            return
-
-        embed_searching = discord.Embed(
-            title="🔍 Searching User...",
-            description=
-            f"⏳ Looking up **{username}** on PlayStation Network...",
-            color=0xf39c12)
-        await ctx.respond(embed=embed_searching)
-
-        try:
-            accid = await self.api.obtain_account_id(username)
-        except APIError as e:
-            embed_error = discord.Embed(title="❌ User Not Found",
-                                        description=f"🚫 {e}",
-                                        color=0xe74c3c)
-            embed_error.set_footer(text="💡 Check the username and try again!")
-            await ctx.edit(embed=embed_error)
-            return
-
-        embed_success = discord.Embed(
-            title=f"🎮 {username}",
-            description=f"🆔 **Account ID:** `{accid}`",
-            color=0x27ae60)
-        embed_success.set_footer(text="✅ Account ID retrieved successfully!")
-        await ctx.edit(embed=embed_success)
 
     @commands.command(name="account_id")
     async def account_id_prefix(self, ctx: commands.Context, username: str) -> None:
-        if not await self._ensure_allowed_guild(ctx):
-            return
-
-        embed_searching = discord.Embed(
-            title="🔍 Searching User...",
-            description=f"⏳ Looking up **{username}** on PlayStation Network...",
-            color=0xf39c12,
-        )
-        message = await ctx.send(embed=embed_searching)
-
-        try:
-            accid = await self.api.obtain_account_id(username)
-        except APIError as e:
-            embed_error = discord.Embed(title="❌ User Not Found", description=f"🚫 {e}", color=0xe74c3c)
-            embed_error.set_footer(text="💡 Check the username and try again!")
-            await message.edit(embed=embed_error)
-            return
-
-        embed_success = discord.Embed(
-            title=f"🎮 {username}",
-            description=f"🆔 **Account ID:** `{accid}`",
-            color=0x27ae60,
-        )
-        embed_success.set_footer(text="✅ Account ID retrieved successfully!")
-        await message.edit(embed=embed_success)
-
+        await self._handle_account(ctx, username)
     async def _ensure_allowed_guild(self, ctx) -> bool:
         if not self.allowed_guild_id:
             return True
