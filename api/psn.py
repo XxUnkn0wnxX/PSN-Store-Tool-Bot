@@ -1,5 +1,6 @@
 import discord
 import aiohttp
+import json
 import re
 from enum import Enum
 from dataclasses import dataclass
@@ -53,12 +54,103 @@ class PSN:
         npsso_value = request.npsso or self.default_npsso
 
         if not cookie_value:
-            raise APIError("Missing pdccws_p cookie. Provide it in the command or set PDC in .env.")
+            raise APIError(
+                "Missing pdccws_p cookie. Provide it in the command or set PDC in .env.",
+                code="auth",
+                hints={"cookie": True, "npsso": False},
+            )
 
         if not npsso_value:
-            raise APIError("Missing NPSSO token. Provide it in the command or set NPSSO in .env.")
+            raise APIError(
+                "Missing NPSSO token. Provide it in the command or set NPSSO in .env.",
+                code="auth",
+                hints={"cookie": False, "npsso": True},
+            )
 
         return cookie_value, npsso_value
+
+    @staticmethod
+    def _classify_auth_components(message: str | None, status: int | None = None) -> tuple[bool, bool]:
+        if not message:
+            # fall back to status-based hints
+            if status in {401, 403}:
+                return True, True
+            return True, True
+
+        lowered = message.lower()
+        cookie_keywords = (
+            "cookie",
+            "pdccws",
+            "session",
+            "aka_a2",
+            "gpdc",
+            "pdc",
+            "pdccws_p",
+            "signin cookie",
+        )
+        npsso_keywords = (
+            "npsso",
+            "userinfo",
+            "token",
+            "authentication",
+            "auth token",
+            "credential",
+            "login",
+            "sign in",
+            "oauth",
+        )
+
+        cookie = any(keyword in lowered for keyword in cookie_keywords)
+        npsso = any(keyword in lowered for keyword in npsso_keywords)
+
+        if not cookie and not npsso:
+            if status in {401, 403}:
+                return True, True
+            return True, True
+
+        return cookie or status in {401, 403}, npsso or status in {401, 403}
+
+    @staticmethod
+    def _looks_like_auth_error(message: str | None) -> bool:
+        if not message:
+            return False
+        cookie, npsso = PSN._classify_auth_components(message, None)
+        if cookie or npsso:
+            return True
+        lowered = message.lower()
+        keywords = (
+            "access denied",
+            "unauthorized",
+            "authorised",
+            "missing access",
+            "forbidden",
+        )
+        return any(keyword in lowered for keyword in keywords)
+
+    async def _read_json(self, response: aiohttp.ClientResponse) -> dict:
+        text = await response.text()
+
+        try:
+            data = json.loads(text) if text else {}
+        except json.JSONDecodeError as exc:
+            raise APIError("Unexpected response from PlayStation API.", code=None) from exc
+
+        if response.status >= 400:
+            message = None
+            if isinstance(data, dict):
+                message = data.get("message") or data.get("error") or data.get("cause")
+                if not message and data.get("errors"):
+                    first = data["errors"][0]
+                    if isinstance(first, dict):
+                        message = first.get("message") or first.get("detail")
+            if not message:
+                message = f"PlayStation API returned status {response.status}."
+            cookie_hint, npsso_hint = self._classify_auth_components(message, response.status)
+            hints = {"cookie": cookie_hint, "npsso": npsso_hint}
+            code = "auth" if response.status in {401, 403} or self._looks_like_auth_error(message) else None
+            raise APIError(message, code=code, hints=hints)
+
+        return data
         
     def get_error_cause(self) -> str:
         return self.res.get("cause")
@@ -138,11 +230,14 @@ class PSN:
 
         async with aiohttp.ClientSession() as session:
             async with session.get(self.url, headers=self.headers) as response:
-                self.res = await response.json()
+                self.res = await self._read_json(response)
 
         sku_get = self.res.get("default_sku", {}).get("id")
         if sku_get is None:
-            raise APIError(self.get_error_cause())
+            message = self.get_error_cause() or "Unable to locate the requested avatar."
+            cookie_hint, npsso_hint = self._classify_auth_components(message, None)
+            code = "auth" if self._looks_like_auth_error(message) else None
+            raise APIError(message, code=code, hints={"cookie": cookie_hint, "npsso": npsso_hint})
         if obtain_skuget_only:
             return sku_get
         
@@ -157,11 +252,13 @@ class PSN:
             
         async with aiohttp.ClientSession() as session:
             async with session.post(self.url, headers=self.headers, json=self.data_json) as response:
-                self.res = await response.json()
+                self.res = await self._read_json(response)
 
         err = self.get_error()
         if err is not None:
-            raise APIError(err)
+            cookie_hint, npsso_hint = self._classify_auth_components(err, None)
+            code = "auth" if self._looks_like_auth_error(err) else None
+            raise APIError(err, code=code, hints={"cookie": cookie_hint, "npsso": npsso_hint})
 
     async def remove_from_cart(self, request: PSNRequest) -> None:
         sku_id = await self.check_avatar(request, obtain_skuget_only=True)
@@ -170,11 +267,13 @@ class PSN:
 
         async with aiohttp.ClientSession() as session:
             async with session.post(self.url, headers=self.headers, json=self.data_json) as response:
-                self.res = await response.json()
+                self.res = await self._read_json(response)
 
         err = self.get_error()
         if err is not None:
-            raise APIError(err)
+            cookie_hint, npsso_hint = self._classify_auth_components(err, None)
+            code = "auth" if self._looks_like_auth_error(err) else None
+            raise APIError(err, code=code, hints={"cookie": cookie_hint, "npsso": npsso_hint})
 
     async def obtain_account_id(self, username: str) -> str:
         if len(username) < 3 or len(username) > 16:

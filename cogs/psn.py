@@ -106,6 +106,56 @@ class PSNCog(commands.Cog):
         self.api = PSN(secret, default_pdc)
         self.allowed_guild_id = allowed_guild_id
 
+    @staticmethod
+    def _auth_error_embed(
+        base_message: str | None,
+        cookie_override: bool,
+        npsso_override: bool,
+        need_cookie: bool = True,
+        need_npsso: bool = True,
+    ) -> discord.Embed:
+        headline = base_message or "PlayStation rejected the provided credentials."
+        description_lines = [
+            f"🚫 {headline}",
+            "",
+            "Please refresh the affected PlayStation credentials:",
+        ]
+
+        need_cookie = bool(need_cookie)
+        need_npsso = bool(need_npsso)
+        if not (need_cookie or need_npsso):
+            need_cookie = True
+            need_npsso = True
+
+        if need_cookie and need_npsso:
+            description_lines.insert(1, "Detected issue with both pdccws_p cookie and NPSSO token.")
+        elif need_cookie:
+            description_lines.insert(1, "Detected issue with the pdccws_p cookie.")
+        elif need_npsso:
+            description_lines.insert(1, "Detected issue with the NPSSO token.")
+
+        if need_cookie:
+            if cookie_override:
+                description_lines.append("• Refresh the `pdccws_p` cookie you supplied with this command.")
+            else:
+                description_lines.append("• Refresh the `PDC` value stored in your `.env` file.")
+
+        if need_npsso:
+            if npsso_override:
+                description_lines.append("• Refresh the NPSSO token you supplied with this command.")
+            else:
+                description_lines.append("• Refresh the `NPSSO` value stored in your `.env` file.")
+
+        description_lines.append("After updating, restart the bot or re-run the command with the new values.")
+
+        embed = discord.Embed(
+            title="🔐 Authentication Required",
+            description="\n".join(description_lines),
+            color=0xe67e22,
+        )
+        embed.set_footer(text="Need help? Run /tutorial for step-by-step token instructions.")
+        return embed
+
     psn_group = discord.SlashCommandGroup("psn")
 
     @psn_group.command(description="🔍 Checks an avatar for you.")
@@ -150,10 +200,27 @@ class PSNCog(commands.Cog):
         try:
             avatar_url = await self.api.check_avatar(request)
         except APIError as e:
-            embed_error = discord.Embed(title="❌ Error Occurred",
-                                        description=f"🚫 {e}",
-                                        color=0xe74c3c)
-            embed_error.set_footer(text="💡 Check your inputs and try again!")
+            message = e.message if getattr(e, "message", None) else str(e)
+            if getattr(e, "code", None) == "auth":
+                hints = getattr(e, "hints", {}) or {}
+                need_cookie = hints.get("cookie", True)
+                need_npsso = hints.get("npsso", True)
+                if not (need_cookie or need_npsso):
+                    need_cookie = need_npsso = True
+                embed_error = self._auth_error_embed(
+                    message,
+                    cookie_arg is not None,
+                    npsso_arg is not None,
+                    need_cookie,
+                    need_npsso,
+                )
+            else:
+                embed_error = discord.Embed(
+                    title="❌ Error Occurred",
+                    description=f"🚫 {message}",
+                    color=0xe74c3c,
+                )
+                embed_error.set_footer(text="💡 Check your inputs and try again!")
             await ctx.respond(embed=embed_error)
             return
 
@@ -181,8 +248,27 @@ class PSNCog(commands.Cog):
         try:
             avatar_url = await self.api.check_avatar(request)
         except APIError as e:
-            embed_error = discord.Embed(title="❌ Error Occurred", description=f"🚫 {e}", color=0xe74c3c)
-            embed_error.set_footer(text="💡 Check your inputs and try again!")
+            message = e.message if getattr(e, "message", None) else str(e)
+            if getattr(e, "code", None) == "auth":
+                hints = getattr(e, "hints", {}) or {}
+                need_cookie = hints.get("cookie", True)
+                need_npsso = hints.get("npsso", True)
+                if not (need_cookie or need_npsso):
+                    need_cookie = need_npsso = True
+                embed_error = self._auth_error_embed(
+                    message,
+                    False,
+                    False,
+                    need_cookie,
+                    need_npsso,
+                )
+            else:
+                embed_error = discord.Embed(
+                    title="❌ Error Occurred",
+                    description=f"🚫 {message}",
+                    color=0xe74c3c,
+                )
+                embed_error.set_footer(text="💡 Check your inputs and try again!")
             await ctx.send(embed=embed_error)
             return
 
@@ -238,11 +324,29 @@ class PSNCog(commands.Cog):
         try:
             await self.api.add_to_cart(request)
         except APIError as e:
-            embed_error = discord.Embed(title="❌ Failed to Add",
-                                        description=f"🚫 {e}",
-                                        color=0xe74c3c)
-            embed_error.set_footer(
-                text="💡 Make sure your token and product ID are correct!")
+            message = e.message if getattr(e, "message", None) else str(e)
+            if getattr(e, "code", None) == "auth":
+                hints = getattr(e, "hints", {}) or {}
+                need_cookie = hints.get("cookie", True)
+                need_npsso = hints.get("npsso", True)
+                if not (need_cookie or need_npsso):
+                    need_cookie = need_npsso = True
+                embed_error = self._auth_error_embed(
+                    message,
+                    cookie_arg is not None,
+                    npsso_arg is not None,
+                    need_cookie,
+                    need_npsso,
+                )
+            else:
+                embed_error = discord.Embed(
+                    title="❌ Failed to Add",
+                    description=f"🚫 {message}",
+                    color=0xe74c3c,
+                )
+                embed_error.set_footer(
+                    text="💡 Make sure your token and product ID are correct!"
+                )
             await ctx.respond(embed=embed_error)
             return
 
@@ -269,8 +373,27 @@ class PSNCog(commands.Cog):
         try:
             await self.api.add_to_cart(request)
         except APIError as e:
-            embed_error = discord.Embed(title="❌ Failed to Add", description=f"🚫 {e}", color=0xe74c3c)
-            embed_error.set_footer(text="💡 Make sure your token and product ID are correct!")
+            message = e.message if getattr(e, "message", None) else str(e)
+            if getattr(e, "code", None) == "auth":
+                hints = getattr(e, "hints", {}) or {}
+                need_cookie = hints.get("cookie", True)
+                need_npsso = hints.get("npsso", True)
+                if not (need_cookie or need_npsso):
+                    need_cookie = need_npsso = True
+                embed_error = self._auth_error_embed(
+                    message,
+                    False,
+                    False,
+                    need_cookie,
+                    need_npsso,
+                )
+            else:
+                embed_error = discord.Embed(
+                    title="❌ Failed to Add",
+                    description=f"🚫 {message}",
+                    color=0xe74c3c,
+                )
+                embed_error.set_footer(text="💡 Make sure your token and product ID are correct!")
             await ctx.send(embed=embed_error)
             return
 
@@ -325,11 +448,29 @@ class PSNCog(commands.Cog):
         try:
             await self.api.remove_from_cart(request)
         except APIError as e:
-            embed_error = discord.Embed(title="❌ Failed to Remove",
-                                        description=f"🚫 {e}",
-                                        color=0xe74c3c)
-            embed_error.set_footer(
-                text="💡 Make sure the item is in your cart!")
+            message = e.message if getattr(e, "message", None) else str(e)
+            if getattr(e, "code", None) == "auth":
+                hints = getattr(e, "hints", {}) or {}
+                need_cookie = hints.get("cookie", True)
+                need_npsso = hints.get("npsso", True)
+                if not (need_cookie or need_npsso):
+                    need_cookie = need_npsso = True
+                embed_error = self._auth_error_embed(
+                    message,
+                    cookie_arg is not None,
+                    npsso_arg is not None,
+                    need_cookie,
+                    need_npsso,
+                )
+            else:
+                embed_error = discord.Embed(
+                    title="❌ Failed to Remove",
+                    description=f"🚫 {message}",
+                    color=0xe74c3c,
+                )
+                embed_error.set_footer(
+                    text="💡 Make sure the item is in your cart!"
+                )
             await ctx.respond(embed=embed_error)
             return
 
@@ -357,8 +498,27 @@ class PSNCog(commands.Cog):
         try:
             await self.api.remove_from_cart(request)
         except APIError as e:
-            embed_error = discord.Embed(title="❌ Failed to Remove", description=f"🚫 {e}", color=0xe74c3c)
-            embed_error.set_footer(text="💡 Make sure the item is in your cart!")
+            message = e.message if getattr(e, "message", None) else str(e)
+            if getattr(e, "code", None) == "auth":
+                hints = getattr(e, "hints", {}) or {}
+                need_cookie = hints.get("cookie", True)
+                need_npsso = hints.get("npsso", True)
+                if not (need_cookie or need_npsso):
+                    need_cookie = need_npsso = True
+                embed_error = self._auth_error_embed(
+                    message,
+                    False,
+                    False,
+                    need_cookie,
+                    need_npsso,
+                )
+            else:
+                embed_error = discord.Embed(
+                    title="❌ Failed to Remove",
+                    description=f"🚫 {message}",
+                    color=0xe74c3c,
+                )
+                embed_error.set_footer(text="💡 Make sure the item is in your cart!")
             await ctx.send(embed=embed_error)
             return
 
