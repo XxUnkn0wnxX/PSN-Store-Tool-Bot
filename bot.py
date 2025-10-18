@@ -116,7 +116,7 @@ async def on_ready() -> None:
         f"client_id={(APPLICATION_ID or bot.user.id)}&scope=bot%20applications.commands&permissions=8&integration_type=0"
     )
     await bot.sync_commands()
-    await bot.sync_commands(guild_id=GUILD_ID)
+    await bot.sync_commands(guild_ids=[GUILD_ID])
     print(f"[ready] Commands   : {[c.qualified_name for c in bot.application_commands]}")
     print(f"""
 ╔═══════════════════════════════════════════════════════════════════════════════════════╗
