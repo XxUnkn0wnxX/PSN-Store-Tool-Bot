@@ -1,5 +1,6 @@
 import discord
 import os
+from discord import Option
 from discord.ext import commands
 from api.common import APIError
 from api.psn import PSN, PSNRequest
@@ -396,16 +397,18 @@ class PSNCog(commands.Cog):
         embed_success.set_footer(text="✅ Account ID retrieved successfully!")
         await self._send_embed(ctx, embed_success, followup=self._is_app_context(ctx))
 
-    psn_slash = discord.SlashCommandGroup("psn")
+    psn_group = discord.SlashCommandGroup(
+        "psn", description="PlayStation Store avatar utilities."
+    )
 
-    @psn_slash.command(name="check", description="🔍 Checks an avatar for you.")
+    @psn_group.command(name="check", description="🔍 Checks an avatar for you.")
     async def psn_slash_check(
         self,
         ctx: discord.ApplicationContext,
-        product_id: discord.Option(str, description=id_desc),
-        region: discord.Option(str, description=region_desc),
-        pdc: discord.Option(str, description=token_desc, default=None),
-        npsso: discord.Option(str, description=npsso_desc, default=None),
+        product_id: Option(str, description=id_desc),  # type: ignore
+        region: Option(str, description=region_desc),  # type: ignore
+        pdc: Option(str, description=token_desc, default=None),  # type: ignore
+        npsso: Option(str, description=npsso_desc, default=None),  # type: ignore
     ) -> None:
         await self._handle_check(
             ctx,
@@ -417,14 +420,14 @@ class PSNCog(commands.Cog):
             npsso_override=npsso is not None,
         )
 
-    @psn_slash.command(name="add", description="🛒 Adds the avatar you input into your cart.")
+    @psn_group.command(name="add", description="🛒 Adds the avatar you input into your cart.")
     async def psn_slash_add(
         self,
         ctx: discord.ApplicationContext,
-        product_id: discord.Option(str, description=id_desc),
-        region: discord.Option(str, description=region_desc),
-        pdc: discord.Option(str, description=token_desc, default=None),
-        npsso: discord.Option(str, description=npsso_desc, default=None),
+        product_id: Option(str, description=id_desc),  # type: ignore
+        region: Option(str, description=region_desc),  # type: ignore
+        pdc: Option(str, description=token_desc, default=None),  # type: ignore
+        npsso: Option(str, description=npsso_desc, default=None),  # type: ignore
     ) -> None:
         await self._handle_add_or_remove(
             ctx,
@@ -437,14 +440,14 @@ class PSNCog(commands.Cog):
             operation="add",
         )
 
-    @psn_slash.command(name="remove", description="🗑️ Removes the avatar you input from your cart.")
+    @psn_group.command(name="remove", description="🗑️ Removes the avatar you input from your cart.")
     async def psn_slash_remove(
         self,
         ctx: discord.ApplicationContext,
-        product_id: discord.Option(str, description=id_desc),
-        region: discord.Option(str, description=region_desc),
-        pdc: discord.Option(str, description=token_desc, default=None),
-        npsso: discord.Option(str, description=npsso_desc, default=None),
+        product_id: Option(str, description=id_desc),  # type: ignore
+        region: Option(str, description=region_desc),  # type: ignore
+        pdc: Option(str, description=token_desc, default=None),  # type: ignore
+        npsso: Option(str, description=npsso_desc, default=None),  # type: ignore
     ) -> None:
         await self._handle_add_or_remove(
             ctx,
@@ -457,11 +460,11 @@ class PSNCog(commands.Cog):
             operation="remove",
         )
 
-    @psn_slash.command(name="account", description="🆔 Gets the account ID from a PSN username.")
+    @psn_group.command(name="account", description="🆔 Gets the account ID from a PSN username.")
     async def psn_slash_account(
         self,
         ctx: discord.ApplicationContext,
-        username: discord.Option(str, description="PSN username to resolve."),
+        username: Option(str, description="PSN username to resolve."),  # type: ignore
     ) -> None:
         await self._handle_account(ctx, username)
 
@@ -582,10 +585,7 @@ class PSNCog(commands.Cog):
 def setup(bot: commands.Bot) -> None:
     cog = PSNCog(os.getenv("NPSSO"), bot, os.getenv("PDC"), os.getenv("GUILD_ID"))
     bot.add_cog(cog)
-    existing = bot.get_application_command("psn")
-    if existing is not None:
-        bot.remove_application_command(existing)
-    try:
-        bot.add_application_command(cog.psn_slash)
-    except discord.errors.CommandAlreadyRegistered:
-        pass
+    for command in list(bot.application_commands):
+        if command.name == "psn":
+            bot.remove_application_command(command)
+    bot.add_application_command(cog.psn_group)
