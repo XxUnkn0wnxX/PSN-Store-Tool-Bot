@@ -107,6 +107,48 @@ The bot auto-syncs commands in the guild defined by `GUILD_ID` on startup and re
 
 ---
 
+## 🕹️ Command Reference
+
+### Slash commands (region-first)
+
+| Command | Description |
+| --- | --- |
+| `/psn check <region> <product_id> [product_id ...]` | Fetch avatar previews. Optional NPSSO/PDC overrides accepted via command options. |
+| `/psn add <region> <product_id>` | Add a single avatar to cart. Optional NPSSO/PDC overrides supported. |
+| `/psn remove <region> <product_id>` | Remove a single avatar from cart. |
+| `/psn account <username>` | Resolve a PSN username to the account ID. |
+| `/ping`, `/tutorial`, `/credits`, `/help` | Utility commands for latency, onboarding, credits, and quick reference. |
+
+> ℹ️ Slash commands accept overrides for NPSSO/PDC even if they are set in `.env`. If omitted, the bot falls back to the `.env` values.
+
+### Prefix commands (default `$`)
+
+| Command | Description |
+| --- | --- |
+| `$psn check <region> <product_id> [more ids…]` | Region-first syntax. Accepts multiple IDs separated by spaces or newlines. Shows an embed per ID. Alias: `$check_avatar`. |
+| `$psn add <region> <product_id> [more ids…]` | Batch add avatars to cart. Alias: `$add_avatar`. |
+| `$psn remove <region> <product_id> [more ids…]` | Batch remove avatars from cart. Alias: `$remove_avatar`. |
+| `$psn account <username>` | Lookup a PSN account ID. Alias: `$account_id`. |
+| `$ping`, `$tutorial`, `$credits`, `$help` | Prefix equivalents for utility commands. |
+
+> ⚠️ Prefix commands always use the credentials defined in `.env`. Passing NPSSO or cookie overrides via prefix is blocked — use the slash command instead.
+
+#### Batch entry examples
+
+```
+$psn check en-US
+EP4293-CUSA15900_00-AV00000000000005
+EP4067-NPEB01320_00-AVPOPULUSM000177
+```
+
+```
+$psn add au EP4293-CUSA15900_00-AV00000000000005 EP4067-NPEB01320_00-AVPOPULUSM000177
+```
+
+Each ID is processed individually; the bot sends the familiar avatar preview embed for every success and a summary for any failures.
+
+---
+
 ## 💬 Support & Feedback
 
 Have issues or ideas?  
