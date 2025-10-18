@@ -39,7 +39,6 @@ bot = commands.Bot(
     command_prefix=commands.when_mentioned,
     activity=activity,
     intents=intents,
-    debug_guilds=[GUILD_ID],
 )
 
 
@@ -69,13 +68,40 @@ async def on_ready() -> None:
     print(f"[lib] Pycord version: {discord.__version__}")
     print(f"[lib] module path  : {discord.__file__}")
     print(f"[ready] Logged in as {bot.user} ({bot.user.id})")
+    invite_url = (
+        f"https://discord.com/api/oauth2/authorize?"
+        f"client_id={bot.user.id}&scope=bot%20applications.commands&permissions=8&integration_type=0"
+    )
+    guild = bot.get_guild(GUILD_ID)
+    if guild is None:
+        print("[warn] Bot is not a member of the configured guild "
+              f"({GUILD_ID}). Please invite it using:\n  {invite_url}")
+        await bot.close()
+        return
+
+    try:
+        await bot.sync_commands()
+        await bot.sync_commands(guild_id=GUILD_ID)
+    except discord.Forbidden as exc:
+        print(f"[error] Missing access to guild {GUILD_ID}: {exc}. "
+              f"Invite the bot using:\n  {invite_url}")
+        await bot.close()
+        return
+    except discord.HTTPException as exc:
+        if exc.status == 403:
+            print(f"[error] Missing access to guild {GUILD_ID}: {exc.text}. "
+                  f"Invite the bot using:\n  {invite_url}")
+            await bot.close()
+            return
+        raise
+
     print(f"[ready] Commands   : {[c.qualified_name for c in bot.application_commands]}")
     print(f"""
 ╔═══════════════════════════════════════════════════════════════════════════════════════╗
 ║                                  🎮 PSNTOOLBOT 🎮                                     ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════╣
 ║  🤖 PSNToolBot is ready!                                                              ║
-║  🔗 Invite: https://discord.com/api/oauth2/authorize?client_id={bot.user.id}&scope=bot%20applications.commands&permissions=8&integration_type=0
+║  🔗 Invite: {invite_url}
 ║  🎮 Original creator: https://github.com/groriz11                                     ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════╝
     """)
