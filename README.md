@@ -80,7 +80,7 @@ PDC=optional_pdccws_p_cookie
 ```
 
 - `NPSSO` is required for PSN API calls.
-- `PDC` is optional; if omitted, supply it as an override when commands ask for it.
+- `PDC` is the `pdccws_p` cookie you can grab from your browser after logging into [playstation.com](https://www.playstation.com). It’s optional; if omitted, supply it as an override when commands ask for it.
 
 ---
 
