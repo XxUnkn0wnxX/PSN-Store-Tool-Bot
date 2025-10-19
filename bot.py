@@ -292,9 +292,11 @@ async def on_ready() -> None:
     retry_callback: Callable[[set[str], set[str]], Awaitable[None]] | None = None
 
     if AUTO_SYNC_DEBUG_GUILD and not _force_sync:
-        print("[sync] Using debug_guilds auto-sync; skipping manual sync.", flush=True)
+        guild_list_display = _format_guild_list(GUILD_IDS)
+        print(f"[sync] Using debug_guilds auto-sync for guilds [{guild_list_display}]; skipping manual sync.", flush=True)
     else:
         async def _do_sync(force_global: bool, force_guild: bool) -> None:
+            guild_list_display = _format_guild_list(GUILD_IDS)
             if force_global:
                 start = time.perf_counter()
                 print("[sync] Syncing global commands…", flush=True)
@@ -306,12 +308,19 @@ async def on_ready() -> None:
 
             if force_guild:
                 start = time.perf_counter()
-                print("[sync] Syncing guild commands…", flush=True)
+                print(f"[sync] Syncing guild commands for guilds [{guild_list_display}]…", flush=True)
                 await bot.sync_commands(guild_ids=list(GUILD_IDS))
                 duration = time.perf_counter() - start
-                print(f"[sync] Syncing guild commands… (completed in {duration:.2f}s)", flush=True)
+                print(
+                    f"[sync] Syncing guild commands for guilds [{guild_list_display}]… "
+                    f"(completed in {duration:.2f}s)",
+                    flush=True,
+                )
             else:
-                print("[sync] Guild commands already up to date; skipping sync.", flush=True)
+                print(
+                    f"[sync] Guild commands already up to date for guilds [{guild_list_display}]; skipping sync.",
+                    flush=True,
+                )
 
         initial_force_global = _need_sync_global or _force_sync
         initial_force_guild = _need_sync_guild or _force_sync
@@ -438,6 +447,10 @@ def _summarize_commands() -> list[tuple[str, list[str]]]:
     return ordered
 
 
+def _format_guild_list(guild_ids: Sequence[int]) -> str:
+    return ", ".join(str(gid) for gid in guild_ids) if guild_ids else "none"
+
+
 async def main(args: argparse.Namespace) -> None:
     token = os.getenv("TOKEN")
     if not token:
@@ -482,7 +495,8 @@ async def main(args: argparse.Namespace) -> None:
     _need_sync_guild = _force_sync or bool(aggregated_missing_guild)
 
     if AUTO_SYNC_DEBUG_GUILD and not _force_sync:
-        print("[sync] Auto guild sync enabled; relying on Pycord debug_guilds.")
+        guild_list_display = _format_guild_list(GUILD_IDS)
+        print(f"[sync] Auto guild sync enabled for guilds [{guild_list_display}]; relying on Pycord debug_guilds.")
         if missing_guild_by_id:
             for guild_id, names in sorted(missing_guild_by_id.items()):
                 print(f"[sync] Waiting for guild {guild_id} commands: {sorted(names)}")
@@ -504,9 +518,14 @@ async def main(args: argparse.Namespace) -> None:
                 for guild_id, names in sorted(missing_guild_by_id.items()):
                     print(f"[sync] Guild {guild_id} commands missing: {sorted(names)}")
             else:
-                print("[sync] Guild commands will be force-synced.")
+                guild_list_display = _format_guild_list(GUILD_IDS)
+                print(f"[sync] Guild commands will be force-synced for guilds [{guild_list_display}].")
         else:
-            print("[sync] Guild commands already present; will skip sync unless forced.")
+            guild_list_display = _format_guild_list(GUILD_IDS)
+            print(
+                f"[sync] Guild commands already present for guilds [{guild_list_display}]; "
+                "will skip sync unless forced."
+            )
 
     print("Starting bot...")
     try:
