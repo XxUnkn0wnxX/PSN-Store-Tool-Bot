@@ -289,8 +289,6 @@ async def on_ready() -> None:
         f"https://discord.com/api/oauth2/authorize?"
         f"client_id={(APPLICATION_ID or bot.user.id)}&scope=bot%20applications.commands&permissions=8&integration_type=0"
     )
-    available = [c.qualified_name for c in bot.application_commands]
-
     retry_callback: Callable[[set[str], set[str]], Awaitable[None]] | None = None
 
     if AUTO_SYNC_DEBUG_GUILD and not _force_sync:
@@ -358,8 +356,8 @@ async def on_ready() -> None:
     else:
         print("[sync] Command verification timed out; check Discord developer portal.", flush=True)
 
-    available = [c.qualified_name for c in bot.application_commands]
-    print(f"[ready] Commands: {available}", flush=True)
+    for scope_name, commands_list in _summarize_commands():
+        print(f"[ready] Commands ({scope_name}): {commands_list}", flush=True)
     print(
         """
 ╔═══════════════════════════════════════════════════════════════════════════════════════╗
@@ -407,6 +405,37 @@ async def prepare_expected_commands() -> tuple[set[str], set[str]]:
         _expected_guild = guild_commands
 
     return _expected_global, _expected_guild
+
+
+def _summarize_commands() -> list[tuple[str, list[str]]]:
+    scopes: dict[str, set[str]] = {}
+    for command in bot.application_commands:
+        name = command.qualified_name
+        guild_ids = getattr(command, "guild_ids", None)
+        if guild_ids:
+            try:
+                iterator = list(guild_ids)
+            except TypeError:
+                iterator = [guild_ids]
+            for guild_id in iterator:
+                key = f"Guild {guild_id}"
+                scopes.setdefault(key, set()).add(name)
+        else:
+            scopes.setdefault("Global", set()).add(name)
+
+    ordered: list[tuple[str, list[str]]] = []
+    if "Global" in scopes:
+        ordered.append(("Global", sorted(scopes.pop("Global"))))
+
+    for guild_id in GUILD_IDS:
+        key = f"Guild {guild_id}"
+        names = sorted(scopes.pop(key, set()))
+        ordered.append((key, names))
+
+    for key in sorted(scopes):
+        ordered.append((key, sorted(scopes[key])))
+
+    return ordered
 
 
 async def main(args: argparse.Namespace) -> None:
