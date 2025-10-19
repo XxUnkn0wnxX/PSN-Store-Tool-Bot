@@ -1,5 +1,7 @@
-import discord
 import os
+from typing import Iterable
+
+import discord
 from discord import Option
 from discord.ext import commands
 from api.common import APIError
@@ -63,6 +65,21 @@ COUNTRY_OVERRIDES = {
 }
 
 
+def _parse_allowed_guilds(raw: str | None) -> set[int]:
+    if not raw:
+        return set()
+    guild_ids: set[int] = set()
+    for chunk in raw.split(","):
+        piece = chunk.strip()
+        if not piece:
+            continue
+        try:
+            guild_ids.add(int(piece))
+        except ValueError:
+            continue
+    return guild_ids
+
+
 def mask_value(value: str, visible: int = 4) -> str:
     if not value:
         return ""
@@ -101,10 +118,16 @@ def normalize_region_input(value: str) -> str:
 
 class PSNCog(commands.Cog):
 
-    def __init__(self, secret: str, bot: commands.Bot, default_pdc: str | None = None, allowed_guild_id: str | None = None) -> None:
+    def __init__(
+        self,
+        secret: str,
+        bot: commands.Bot,
+        default_pdc: str | None = None,
+        allowed_guild_ids: Iterable[int] | None = None,
+    ) -> None:
         self.bot = bot
         self.api = PSN(secret, default_pdc)
-        self.allowed_guild_id = allowed_guild_id
+        self.allowed_guild_ids: set[int] = set(allowed_guild_ids or [])
 
     @staticmethod
     def _auth_error_embed(
@@ -782,12 +805,13 @@ class PSNCog(commands.Cog):
         await self._handle_account(ctx, username)
 
     async def _ensure_allowed_guild(self, ctx) -> bool:
-        if not self.allowed_guild_id:
+        if not self.allowed_guild_ids:
             return True
-        if ctx.guild is None or str(ctx.guild.id) != str(self.allowed_guild_id):
+        guild = ctx.guild
+        if guild is None or guild.id not in self.allowed_guild_ids:
             embed = discord.Embed(
                 title="🔒 Command Restricted",
-                description="This bot is configured for a specific server and cannot be used here.",
+                description="This bot is configured for specific server(s) and cannot be used here.",
                 color=0xe74c3c,
             )
             if hasattr(ctx, "respond"):
@@ -802,5 +826,10 @@ def setup(bot: commands.Bot) -> None:
     for command in list(bot.application_commands):
         if command.name == "psn":
             bot.remove_application_command(command)
-    cog = PSNCog(os.getenv("NPSSO"), bot, os.getenv("PDC"), os.getenv("GUILD_ID"))
+    cog = PSNCog(
+        os.getenv("NPSSO"),
+        bot,
+        os.getenv("PDC"),
+        _parse_allowed_guilds(os.getenv("GUILD_ID")),
+    )
     bot.add_cog(cog)

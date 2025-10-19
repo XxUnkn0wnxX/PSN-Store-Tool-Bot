@@ -4,7 +4,7 @@ import argparse
 from math import ceil
 import traceback
 import asyncio
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 import aiohttp
 import discord
 from dotenv import load_dotenv
@@ -38,26 +38,32 @@ if env_path.exists():
 config_values = _load_config()
 
 token_config = config_values.get("TOKEN", "").strip()
-guild_config = config_values.get("GUILD_ID", "").strip()
+guild_config_raw = config_values.get("GUILD_ID", "").strip()
 prefix_config = config_values.get("PREFIX", "").strip() or "$"
 
-if not token_config or not guild_config:
-    raise SystemExit(".config must define TOKEN and GUILD_ID.")
+if not token_config or not guild_config_raw:
+    raise SystemExit(".config must define TOKEN and at least one GUILD_ID.")
 
 os.environ["TOKEN"] = token_config
-os.environ["GUILD_ID"] = guild_config
+os.environ["GUILD_ID"] = guild_config_raw
 os.environ["PREFIX"] = prefix_config
+
+guild_config_parts = [part.strip() for part in guild_config_raw.split(",") if part.strip()]
+if not guild_config_parts:
+    raise SystemExit("GUILD_ID must define at least one Discord server ID.")
 
 if not os.getenv("NPSSO"):
     raise SystemExit("Missing NPSSO in environment (.env)")
 
 try:
-    GUILD_ID = int(guild_config)
+    GUILD_IDS: list[int] = [int(part) for part in guild_config_parts]
 except ValueError as exc:
-    raise SystemExit("GUILD_ID must be a numeric Discord server ID") from exc
+    raise SystemExit("GUILD_ID entries must be numeric Discord server IDs separated by commas") from exc
 
-if GUILD_ID <= 0:
-    raise SystemExit("GUILD_ID must be a positive Discord server ID")
+if any(guild_id <= 0 for guild_id in GUILD_IDS):
+    raise SystemExit("GUILD_ID entries must be positive Discord server IDs")
+
+GUILD_ID = GUILD_IDS[0]
 
 PREFIX = prefix_config or "$"
 
@@ -91,7 +97,7 @@ bot = commands.Bot(
 )
 bot.help_command = None
 if AUTO_SYNC_DEBUG_GUILD:
-    bot.debug_guilds = [GUILD_ID]
+    bot.debug_guilds = list(GUILD_IDS)
 
 
 async def load_extensions() -> None:
@@ -119,14 +125,21 @@ async def load_extensions() -> None:
     _cogs_loaded = True
 
 
-async def ensure_guild_membership(token: str, guild_id: int) -> bool:
+async def ensure_guild_membership(token: str, guild_ids: Sequence[int]) -> list[int]:
     global APPLICATION_ID
+
+    normalized_ids = list(dict.fromkeys(guild_ids))
+    if not normalized_ids:
+        return []
 
     timeout = aiohttp.ClientTimeout(total=15)
     headers = {
         "Authorization": f"Bot {token}",
         "User-Agent": "PSNToolBot/1.0 (https://github.com/XxUnkn0wnxX/PSN-Store-Tool-Bot)"
     }
+
+    accessible: list[int] = []
+    missing: list[int] = []
 
     async with aiohttp.ClientSession(headers=headers, timeout=timeout) as session:
         async with session.get("https://discord.com/api/v10/oauth2/applications/@me") as resp:
@@ -136,24 +149,33 @@ async def ensure_guild_membership(token: str, guild_id: int) -> bool:
             data = await resp.json()
             APPLICATION_ID = data.get("id")
 
-        async with session.get(f"https://discord.com/api/v10/guilds/{guild_id}") as resp:
-            if resp.status == 200:
-                return True
-            if resp.status in {403, 404}:
-                invite = (
-                    "https://discord.com/api/oauth2/authorize?"
-                    f"client_id={APPLICATION_ID}&scope=bot%20applications.commands&permissions=8&integration_type=0"
-                )
-                print(
-                    f"[warn] Bot is not invited to guild {guild_id}.\n\n"
-                    f"Invite it using:\n\n{invite}\n"
-                )
-                return False
+        for guild_id in normalized_ids:
+            async with session.get(f"https://discord.com/api/v10/guilds/{guild_id}") as resp:
+                if resp.status == 200:
+                    accessible.append(guild_id)
+                    continue
+                if resp.status in {403, 404}:
+                    missing.append(guild_id)
+                    continue
 
-            text = await resp.text()
-            raise SystemExit(
-                f"Unexpected response when checking guild {guild_id} (status {resp.status}): {text}"
-            )
+                text = await resp.text()
+                raise SystemExit(
+                    f"Unexpected response when checking guild {guild_id} (status {resp.status}): {text}"
+                )
+
+    if missing:
+        invite = (
+            "https://discord.com/api/oauth2/authorize?"
+            f"client_id={APPLICATION_ID}&scope=bot%20applications.commands&permissions=8&integration_type=0"
+        )
+        missing_csv = ", ".join(str(g) for g in missing)
+        print(
+            f"[warn] Bot is not invited to guild(s): {missing_csv}.\n\n"
+            f"Invite it using:\n\n{invite}\n",
+            flush=True,
+        )
+
+    return accessible
 
 
 async def fetch_command_sets(token: str, guild_id: int) -> tuple[set[str], set[str]]:
@@ -200,7 +222,7 @@ async def fetch_command_sets(token: str, guild_id: int) -> tuple[set[str], set[s
 
 async def wait_for_command_sets(
     token: str,
-    guild_id: int,
+    guild_ids: Sequence[int],
     expected_global: set[str],
     expected_guild: set[str],
     timeout: float = 30.0,
@@ -208,22 +230,35 @@ async def wait_for_command_sets(
     retry_callback: Callable[[set[str], set[str]], Awaitable[None]] | None = None,
     max_attempts: int = 5,
 ) -> bool:
+    guild_id_list = list(dict.fromkeys(guild_ids))
+    if not guild_id_list:
+        return True
+
     for attempt in range(1, max_attempts + 1):
         end_at = time.monotonic() + timeout
         while time.monotonic() < end_at:
-            existing_global, existing_guild = await fetch_command_sets(token, guild_id)
-            missing_global = expected_global - existing_global
-            missing_guild = expected_guild - existing_guild
+            missing_global_total: set[str] = set()
+            missing_guilds: dict[int, set[str]] = {}
 
-            if not missing_global and not missing_guild:
+            for guild_id in guild_id_list:
+                existing_global, existing_guild = await fetch_command_sets(token, guild_id)
+                missing_global_total |= expected_global - existing_global
+                guild_missing = expected_guild - existing_guild
+                if guild_missing:
+                    missing_guilds[guild_id] = guild_missing
+
+            if not missing_global_total and not missing_guilds:
                 return True
 
             remaining = max(0.0, end_at - time.monotonic())
+            combined_guild_missing = {
+                gid: sorted(missing) for gid, missing in sorted(missing_guilds.items())
+            }
             print(
                 "[sync] Verifying (retry in "
                 f"{interval:.0f}s, {ceil(remaining)}s left)… "
-                f"missing_global={sorted(missing_global)} "
-                f"missing_guild={sorted(missing_guild)}",
+                f"missing_global={sorted(missing_global_total)} "
+                f"missing_guild={combined_guild_missing}",
                 flush=True,
             )
             await asyncio.sleep(interval)
@@ -231,7 +266,8 @@ async def wait_for_command_sets(
         if retry_callback is not None:
             print(f"[sync] Attempt {attempt}/{max_attempts} timed out — retrying manual sync…", flush=True)
             try:
-                await retry_callback(missing_global, missing_guild)
+                aggregated_missing_guild = set().union(*missing_guilds.values()) if missing_guilds else set()
+                await retry_callback(missing_global_total, aggregated_missing_guild)
             except Exception as exc:
                 print(f"[sync] Retry sync failed: {exc}", flush=True)
         else:
@@ -273,7 +309,7 @@ async def on_ready() -> None:
             if force_guild:
                 start = time.perf_counter()
                 print("[sync] Syncing guild commands…", flush=True)
-                await bot.sync_commands(guild_ids=[GUILD_ID])
+                await bot.sync_commands(guild_ids=list(GUILD_IDS))
                 duration = time.perf_counter() - start
                 print(f"[sync] Syncing guild commands… (completed in {duration:.2f}s)", flush=True)
             else:
@@ -312,7 +348,7 @@ async def on_ready() -> None:
 
     success = await wait_for_command_sets(
         _bot_token,
-        GUILD_ID,
+        GUILD_IDS,
         _expected_global,
         _expected_guild,
         retry_callback=retry_callback,
@@ -378,33 +414,49 @@ async def main(args: argparse.Namespace) -> None:
     if not token:
         raise SystemExit("Missing TOKEN in configuration (.config)")
 
-    global _bot_token, _force_sync, _need_sync_global, _need_sync_guild
+    global _bot_token, _force_sync, _need_sync_global, _need_sync_guild, GUILD_IDS, GUILD_ID
     _bot_token = token
     _force_sync = bool(getattr(args, "force_sync", False))
 
-    has_access = await ensure_guild_membership(token, GUILD_ID)
-    if not has_access:
+    accessible_guild_ids = await ensure_guild_membership(token, GUILD_IDS)
+    if not accessible_guild_ids:
+        print("[warn] Bot is not a member of any configured guilds; exiting.", flush=True)
         return
+
+    if accessible_guild_ids != GUILD_IDS:
+        GUILD_IDS = accessible_guild_ids
+        GUILD_ID = GUILD_IDS[0]
+        if AUTO_SYNC_DEBUG_GUILD:
+            bot.debug_guilds = list(GUILD_IDS)
 
     await load_extensions()
     expected_global, expected_guild = await prepare_expected_commands()
 
-    try:
-        existing_global, existing_guild = await fetch_command_sets(token, GUILD_ID)
-    except Exception as exc:
-        print(f"[warn] Unable to fetch existing command sets: {exc}")
-        existing_global, existing_guild = set(), set()
+    missing_global: set[str] = set()
+    missing_guild_by_id: dict[int, set[str]] = {}
 
-    missing_global = expected_global - existing_global
-    missing_guild = expected_guild - existing_guild
+    for guild_id in GUILD_IDS:
+        try:
+            existing_global, existing_guild = await fetch_command_sets(token, guild_id)
+        except Exception as exc:
+            print(f"[warn] Unable to fetch existing command sets for guild {guild_id}: {exc}")
+            existing_global, existing_guild = set(), set()
+
+        missing_global |= expected_global - existing_global
+        guild_missing = expected_guild - existing_guild
+        if guild_missing:
+            missing_guild_by_id[guild_id] = guild_missing
+
+    aggregated_missing_guild = set().union(*missing_guild_by_id.values()) if missing_guild_by_id else set()
 
     _need_sync_global = _force_sync or bool(missing_global)
-    _need_sync_guild = _force_sync or bool(missing_guild)
+    _need_sync_guild = _force_sync or bool(aggregated_missing_guild)
 
     if AUTO_SYNC_DEBUG_GUILD and not _force_sync:
         print("[sync] Auto guild sync enabled; relying on Pycord debug_guilds.")
-        if missing_guild:
-            print(f"[sync] Waiting for guild commands: {sorted(missing_guild)}")
+        if missing_guild_by_id:
+            for guild_id, names in sorted(missing_guild_by_id.items()):
+                print(f"[sync] Waiting for guild {guild_id} commands: {sorted(names)}")
         if missing_global:
             print(f"[sync] Unexpected global commands missing: {sorted(missing_global)}")
         _need_sync_global = False
@@ -419,8 +471,9 @@ async def main(args: argparse.Namespace) -> None:
             print("[sync] Global commands already present; will skip sync unless forced.")
 
         if _need_sync_guild:
-            if missing_guild:
-                print(f"[sync] Guild commands missing: {sorted(missing_guild)}")
+            if missing_guild_by_id:
+                for guild_id, names in sorted(missing_guild_by_id.items()):
+                    print(f"[sync] Guild {guild_id} commands missing: {sorted(names)}")
             else:
                 print("[sync] Guild commands will be force-synced.")
         else:

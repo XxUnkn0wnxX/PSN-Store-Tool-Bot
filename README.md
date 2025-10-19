@@ -21,7 +21,7 @@ Before running the bot, you'll need:
 
 - ✅ A valid **NPSSO token** (for PSN API access)
 - ✅ Your **Discord bot token**
-- ✅ Your **Discord server id** (bot is locked to this server)
+- ✅ The **Discord server ID(s)** you want the bot to run in (list all allowed servers)
 
 ---
 
@@ -62,7 +62,7 @@ cp .config.template .config
 
 ```
 TOKEN=your_discord_bot_token
-GUILD_ID=your_discord_server_id
+GUILD_ID=primary_server_id[,another_server_id,...]
 PREFIX=$   # Optional; defaults to `$`
 ```
 
@@ -89,7 +89,7 @@ PDC=optional_pdccws_p_cookie
 In the [Discord Developer Portal](https://discord.com/developers/applications):
 
 - Enable the **Message Content Intent** under *Privileged Gateway Intents*.
-- Grab the **Server ID** of the guild where you want to test slash commands and set `GUILD_ID` in `.env`.
+- Grab the **Server ID(s)** of every guild where the bot should run and set `GUILD_ID` in `.env` (comma-separated for multiples).
 - Generate an OAuth2 URL with the following scopes:
 
   ```
@@ -116,8 +116,8 @@ Your bot is now live and ready to add avatars or fetch PSN IDs! 🎉
 - Need to hit a different PlayStation account? Provide an `NPSSO` value in the slash command, otherwise the `.env` `NPSSO` is used.
 - Legacy prefix commands mirror the slash commands but always use the credentials in `.env`. Set `PREFIX` in `.env` (default `$`) if you want to change it.
 
-The bot auto-syncs commands in the guild defined by `GUILD_ID` on startup and refuses to run in other servers. Forced syncs and the built-in verifier ensure commands appear even if Discord is slow to propagate them.
-**Important:** This project is intended for single-server/self-hosted setups. Invite the bot only to the server that matches `GUILD_ID`.
+The bot auto-syncs commands in every guild listed in `GUILD_ID` on startup and refuses to run in other servers. Forced syncs and the built-in verifier ensure commands appear even if Discord is slow to propagate them across all configured guilds.
+**Important:** This project is intended for self-hosted setups. Only list guild IDs that you control in `GUILD_ID`.
 
 ---
 

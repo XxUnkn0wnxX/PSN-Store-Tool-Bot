@@ -1,4 +1,5 @@
 # Discord bot configuration
 TOKEN=
+# Comma-separated list of guild IDs that should have access (e.g. 123456789012345678,987654321098765432)
 GUILD_ID=
 PREFIX=$
