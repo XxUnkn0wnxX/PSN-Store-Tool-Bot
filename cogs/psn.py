@@ -604,7 +604,7 @@ class PSNCog(commands.Cog):
     ) -> None:
         await self._handle_check(
             ctx,
-            product_id=product_id,
+            product_ids=[product_id],
             region=region,
             cookie_arg=pdc,
             npsso_arg=npsso,
