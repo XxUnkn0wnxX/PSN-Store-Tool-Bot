@@ -218,6 +218,10 @@ class PSNCog(commands.Cog):
 
         description_lines.append("After updating, restart the bot or re-run the command with the new values.")
 
+        if need_npsso:
+            description_lines.append("")
+            description_lines.append(NPSSO_HELP_LINK)
+
         embed = discord.Embed(
             title="🔐 Authentication Required",
             description="\n".join(description_lines),
@@ -491,6 +495,9 @@ class PSNCog(commands.Cog):
                 successes.append((pid, avatar_url))
             except APIError as e:
                 message = e.message if getattr(e, "message", None) else str(e)
+                hints = getattr(e, "hints", {}) or {}
+                if hints.get("npsso"):
+                    message = f"{message}\n{NPSSO_HELP_LINK}"
                 failures.append((pid, message))
 
         is_app_context = self._is_app_context(ctx)
@@ -665,6 +672,9 @@ class PSNCog(commands.Cog):
                     else:
                         await self._send_embed(ctx, embed_error, content=mention)
                     return
+                hints = getattr(e, "hints", {}) or {}
+                if hints.get("npsso"):
+                    message = f"{message}\n{NPSSO_HELP_LINK}"
                 failures.append((pid, message))
                 results.append((pid, False, message))
 
