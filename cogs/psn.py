@@ -482,7 +482,13 @@ class PSNCog(commands.Cog):
             first_pid, first_url = successes[0]
             await update_progress(make_success_embed(first_pid, first_url, 1, len(successes)))
             for index, (pid, avatar_url) in enumerate(successes[1:], start=2):
-                await self._send_embed(ctx, make_success_embed(pid, avatar_url, index, len(successes)), followup=followup)
+                embed = make_success_embed(pid, avatar_url, index, len(successes))
+                await self._send_embed(
+                    ctx,
+                    embed,
+                    followup=followup,
+                    content=mention if not is_app_context else None,
+                )
         else:
             failure_lines = [f"• **{pid}** — {msg}" for pid, msg in failures] or ["No avatars matched the provided IDs."]
             embed_error = discord.Embed(
