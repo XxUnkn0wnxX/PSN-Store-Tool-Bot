@@ -291,7 +291,19 @@ class PSNCog(commands.Cog):
                 try:
                     normalize_region_input(tokens[1])
                 except APIError:
-                    pass
+                    # Neither token looks like a region; prompt with usage guidance
+                    # instead of showing an "Invalid Region" error.
+                    usage = f"{ctx.prefix or ''}{ctx.invoked_with} <region> <product_id> [more_ids...]"
+                    embed = discord.Embed(
+                        title="ℹ️ Missing Arguments",
+                        description=(
+                            "The first argument must be a region code (e.g. `en-US`, `en-GB`, `au`).\n"
+                            f"Example: `{usage}`"
+                        ),
+                        color=0xf1c40f,
+                    )
+                    await ctx.send(embed=embed)
+                    return None
                 else:
                     tokens = [tokens[1], tokens[0], *tokens[2:]]
 
