@@ -63,7 +63,7 @@ cp .env.template .env
 PDC=your_pdccws_p_cookie
 ```
 
-- `PDC` is the `pdccws_p` cookie you can grab from your browser after logging into [playstation.com](https://www.playstation.com). Start the bot with `--env` to let it fall back to this value; otherwise pass the cookie with each command.
+- `PDC` is the `pdccws_p` cookie you can grab from your browser after logging into [playstation.com](https://www.playstation.com). Start the bot with `--env` so prefix commands can fall back to this value. Slash commands always require you to supply the cookie field.
 - *(Optional)* If you still need NPSSO for account lookups, see the legacy section at the end of this README.
 
 ---
@@ -96,7 +96,7 @@ Your bot is now live and ready to add avatars or fetch PSN IDs! 🎉
 ### Optional CLI flags
 
 - `python3 bot.py --force-sync` – Force a full slash-command resync even if commands already exist in Discord. Handy after you change command definitions and want them refreshed immediately.
-- `python3 bot.py --env [path]` – Load credentials from `.env` (or the file at `path`) so the bot can fall back to `PDC`/`NPSSO` without requiring per-command overrides.
+- `python3 bot.py --env [path]` – Load credentials from `.env` (or the file at `path`) so prefix commands can reuse the stored `PDC` without adding `--pdc` each time. Slash commands still require the `PDC` option.
 - Cart commands generate NPSSO tokens automatically; no manual NPSSO input is required for add/remove flows.
 - Legacy prefix commands mirror the slash commands but always use the credentials in `.env`. Set `PREFIX` in `.env` (default `$`) if you want to change it.
 
@@ -112,12 +112,12 @@ The bot auto-syncs commands in every guild listed in `GUILD_ID` on startup and r
 | Command | Description |
 | --- | --- |
 | `/psn check <region> <product_id> [up to 3 more IDs]` | Fetch up to four avatar previews without needing NPSSO/PDC overrides. |
-| `/psn add <region> <product_id> [up to 3 more IDs]` | Add up to four avatars to cart. Provide PDC unless the bot runs with `--env`. |
-| `/psn remove <region> <product_id> [up to 3 more IDs]` | Remove up to four avatars from cart. Provide PDC unless the bot runs with `--env`. |
+| `/psn add <region> <product_id> [up to 3 more IDs]` | Add up to four avatars to cart. Requires the PDC cookie field. |
+| `/psn remove <region> <product_id> [up to 3 more IDs]` | Remove up to four avatars from cart. Requires the PDC cookie field. |
 | `/psn account <username>` | Resolve a PSN username to the account ID (requires NPSSO in `.env`). |
 | `/ping`, `/tutorial`, `/credits`, `/help` | Utility commands for latency, onboarding, credits, and quick reference. |
 
-> ℹ️ The add/remove slash commands accept optional PDC overrides and auto-generate NPSSO tokens. `/psn account` will only work when an NPSSO is configured in `.env`.
+> ℹ️ The add/remove slash commands always require the PDC field and auto-generate NPSSO tokens. `/psn account` will only work when an NPSSO is configured in `.env`.
 
 ### Prefix commands (default `$`)
 

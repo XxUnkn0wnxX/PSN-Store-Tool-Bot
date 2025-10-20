@@ -5,7 +5,6 @@ import re
 import discord
 from discord import Option
 from discord.ext import commands
-from discord.utils import MISSING
 from api.common import APIError
 from api.psn import PSN, PSNRequest
 from psnawp_api.core.psnawp_exceptions import PSNAWPNotFoundError as PSNAWPNotFound
@@ -37,13 +36,9 @@ invalid_region = discord.Embed(
     "🌍 Please use a valid region code (e.g., 'en-US', 'en-GB', 'fr-FR')",
     color=0xe74c3c)
 
-token_desc = "PDC cookie (required unless the bot started with --env)"
+token_desc = "PDC cookie (required)"
 id_desc = "ID from psprices product_id command"
 region_desc = "Region code (e.g. 'en-US' or 'US')"
-
-PDC_REQUIRED = os.getenv("BOT_USE_ENV") != "1"
-MISSING = MISSING if PDC_REQUIRED else None
-PDC_OPTION_KWARGS: dict[str, object] = {"default": MISSING}
 
 COUNTRY_OVERRIDES = {
     "UK": "en-GB",
@@ -764,20 +759,19 @@ class PSNCog(commands.Cog):
         ctx: discord.ApplicationContext,
         region: Option(str, description=region_desc),  # type: ignore
         product_id: Option(str, description=id_desc),  # type: ignore
-        pdc: Option(str, description=token_desc, default=MISSING),  # type: ignore[arg-type]
+        pdc: Option(str, description=token_desc, required=True),  # type: ignore[arg-type]
         product_id2: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
         product_id3: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
         product_id4: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
     ) -> None:
-        if pdc is MISSING:
-            pdc = None
-        if pdc is None and not self.api.has_pdc_fallback():
+        cookie_value = pdc.strip()
+        if not cookie_value:
             await ctx.respond(
                 embed=discord.Embed(
                     title="🍪 Cookie Required",
                     description=(
-                        "Provide your `pdccws_p` cookie in the PDC field, or restart the bot with `--env` so it "
-                        "can read PDC from your .env file."
+                        "Provide your `pdccws_p` cookie in the PDC field. Slash commands always require this value, "
+                        "even when the bot was started with `--env`."
                     ),
                     color=0xe67e22,
                 ),
@@ -788,8 +782,8 @@ class PSNCog(commands.Cog):
             ctx,
             product_ids=product_ids,
             region=region,
-            cookie_arg=pdc,
-            cookie_override=pdc is not None,
+            cookie_arg=cookie_value,
+            cookie_override=True,
             operation="add",
         )
 
@@ -799,20 +793,19 @@ class PSNCog(commands.Cog):
         ctx: discord.ApplicationContext,
         region: Option(str, description=region_desc),  # type: ignore
         product_id: Option(str, description=id_desc),  # type: ignore
-        pdc: Option(str, description=token_desc, default=MISSING),  # type: ignore[arg-type]
+        pdc: Option(str, description=token_desc, required=True),  # type: ignore[arg-type]
         product_id2: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
         product_id3: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
         product_id4: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
     ) -> None:
-        if pdc is MISSING:
-            pdc = None
-        if pdc is None and not self.api.has_pdc_fallback():
+        cookie_value = pdc.strip()
+        if not cookie_value:
             await ctx.respond(
                 embed=discord.Embed(
                     title="🍪 Cookie Required",
                     description=(
-                        "Provide your `pdccws_p` cookie in the PDC field, or restart the bot with `--env` so it "
-                        "can read PDC from your .env file."
+                        "Provide your `pdccws_p` cookie in the PDC field. Slash commands always require this value, "
+                        "even when the bot was started with `--env`."
                     ),
                     color=0xe67e22,
                 ),
@@ -823,8 +816,8 @@ class PSNCog(commands.Cog):
             ctx,
             product_ids=product_ids,
             region=region,
-            cookie_arg=pdc,
-            cookie_override=pdc is not None,
+            cookie_arg=cookie_value,
+            cookie_override=True,
             operation="remove",
         )
 

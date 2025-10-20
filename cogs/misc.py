@@ -38,7 +38,9 @@ creditsemb.set_footer(text="🙏 Thank you for using PSNToolBot!")
 
 help_embed_description = (
     "Slash commands are the recommended way to run the bot, but every feature also has a "
-    "matching prefix command for quick text usage. Here's a quick reference:"
+    "matching prefix command for quick text usage. Slash add/remove commands always require the "
+    "`pdccws_p` cookie field; prefix commands can fall back to the `.env` value when the bot runs "
+    "with `--env`. Here's a quick reference:"
 )
 
 
@@ -68,9 +70,9 @@ def build_help_embed(prefix: str) -> discord.Embed:
         value=(
             f"> `/psn check <region> <product_id> [up to 3 more IDs]`\n"
             f"> `{prefix}psn check <region> <product_id> [more IDs…]`\n\n"
-            f"> `/psn add <region> <product_id> [up to 3 more IDs]`\n"
+            f"> `/psn add <region> <product_id> [up to 3 more IDs]` *(PDC required)*\n"
             f"> `{prefix}psn add <region> <product_id> [more IDs…] --pdc YOUR_COOKIE` *(required if the bot wasn't started with `--env`)*\n\n"
-            f"> `/psn remove <region> <product_id> [up to 3 more IDs]`\n"
+            f"> `/psn remove <region> <product_id> [up to 3 more IDs]` *(PDC required)*\n"
             f"> `{prefix}psn remove <region> <product_id> [more IDs…] --pdc YOUR_COOKIE` *(required if the bot wasn't started with `--env`)*\n\n"
             f"> `/psn account <username>`\n"
             f"> `{prefix}psn account <username>`\n"
