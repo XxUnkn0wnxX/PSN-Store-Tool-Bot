@@ -495,12 +495,22 @@ class PSNCog(commands.Cog):
                 )
             )
 
+        max_embeds = 10
+        chunks = [embeds_to_send[i : i + max_embeds] for i in range(0, len(embeds_to_send), max_embeds)]
+
         if is_app_context:
-            await ctx.edit(embeds=embeds_to_send)
+            if chunks:
+                await ctx.edit(content=mention, embeds=chunks[0])
+                for chunk in chunks[1:]:
+                    await ctx.followup.send(content=mention, embeds=chunk)
         elif progress_message is not None:
-            await progress_message.edit(content=mention, embeds=embeds_to_send)
+            if chunks:
+                await progress_message.edit(content=mention, embeds=chunks[0])
+                for chunk in chunks[1:]:
+                    await ctx.send(content=mention, embeds=chunk, silent=True)
         else:
-            await ctx.send(content=mention, embeds=embeds_to_send, silent=True)
+            for idx, chunk in enumerate(chunks):
+                await ctx.send(content=mention, embeds=chunk, silent=True)
 
     async def _handle_add_or_remove(
         self,
