@@ -4,6 +4,7 @@ from typing import Iterable
 import discord
 from discord import Option
 from discord.ext import commands
+from discord.utils import MISSING
 from api.common import APIError
 from api.psn import PSN, PSNRequest
 from psnawp_api.core.psnawp_exceptions import PSNAWPNotFoundError as PSNAWPNotFound
@@ -35,9 +36,16 @@ invalid_region = discord.Embed(
     "🌍 Please use a valid region code (e.g., 'en-US', 'en-GB', 'fr-FR')",
     color=0xe74c3c)
 
-token_desc = "PDC cookie (leave blank to use default)"
+token_desc = "PDC cookie (required unless the bot started with --env)"
 id_desc = "ID from psprices product_id command"
 region_desc = "Region code (e.g. 'en-US' or 'US')"
+
+PDC_REQUIRED = os.getenv("BOT_USE_ENV") != "1"
+PDC_OPTION_KWARGS: dict[str, object]
+if PDC_REQUIRED:
+    PDC_OPTION_KWARGS = {"required": True}
+else:
+    PDC_OPTION_KWARGS = {"required": False, "default": None}
 
 COUNTRY_OVERRIDES = {
     "UK": "en-GB",
@@ -312,8 +320,11 @@ class PSNCog(commands.Cog):
         user = getattr(ctx, "author", None) or getattr(ctx, "user", None)
         if not user:
             return "unknown user"
-        tag = getattr(user, "display_name", None) or getattr(user, "name", None) or str(user)
-        return f"{tag} ({user.id})"
+        display = getattr(user, "display_name", None) or getattr(user, "name", None) or str(user)
+        username = getattr(user, "name", None) or display
+        if display == username:
+            return f"{display} ({user.id})"
+        return f"{display} ({username} / {user.id})"
 
     async def _send_embed(
         self,
@@ -524,13 +535,27 @@ class PSNCog(commands.Cog):
             )
             return
 
+        mention = self._mention(ctx)
+        actor = self._actor_label(ctx)
+
+        if cookie_arg is None and not self.api.has_pdc_fallback():
+            guidance = (
+                "Provide your `pdccws_p` cookie with `--pdc YOUR_COOKIE` at the end of the command, "
+                "or restart the bot with `--env` so the bot can read PDC from your .env file."
+            )
+            embed = discord.Embed(
+                title="🍪 Cookie Required",
+                description=guidance,
+                color=0xe67e22,
+            )
+            await self._send_embed(ctx, embed, content=mention)
+            return
+
         if cookie_arg:
-            print(f"[psn] Using custom PDC from command for {self._actor_label(ctx)}: {mask_value(cookie_arg)}")
+            print(f"[psn] Using custom PDC from command for {actor}: {mask_value(cookie_arg)}")
 
         action_text = "Adding to Cart" if operation == "add" else "Removing from Cart"
         progress_description = f"⏳ Processing {len(cleaned_ids)} item(s)..."
-        mention = self._mention(ctx)
-        actor = self._actor_label(ctx)
 
         is_app_context = self._is_app_context(ctx)
 
@@ -690,8 +715,21 @@ class PSNCog(commands.Cog):
         ctx: discord.ApplicationContext,
         region: Option(str, description=region_desc),  # type: ignore
         product_id: Option(str, description=id_desc),  # type: ignore
-        pdc: Option(str, description=token_desc, default=None),  # type: ignore
+        pdc: Option(str, description=token_desc, **PDC_OPTION_KWARGS),  # type: ignore[arg-type]
     ) -> None:
+        if pdc is None and not self.api.has_pdc_fallback():
+            await ctx.respond(
+                embed=discord.Embed(
+                    title="🍪 Cookie Required",
+                    description=(
+                        "Provide your `pdccws_p` cookie in the PDC field, or restart the bot with `--env` so it "
+                        "can read PDC from your .env file."
+                    ),
+                    color=0xe67e22,
+                ),
+                ephemeral=True,
+            )
+            return
         await self._handle_add_or_remove(
             ctx,
             product_ids=[product_id],
@@ -707,8 +745,21 @@ class PSNCog(commands.Cog):
         ctx: discord.ApplicationContext,
         region: Option(str, description=region_desc),  # type: ignore
         product_id: Option(str, description=id_desc),  # type: ignore
-        pdc: Option(str, description=token_desc, default=None),  # type: ignore
+        pdc: Option(str, description=token_desc, **PDC_OPTION_KWARGS),  # type: ignore[arg-type]
     ) -> None:
+        if pdc is None and not self.api.has_pdc_fallback():
+            await ctx.respond(
+                embed=discord.Embed(
+                    title="🍪 Cookie Required",
+                    description=(
+                        "Provide your `pdccws_p` cookie in the PDC field, or restart the bot with `--env` so it "
+                        "can read PDC from your .env file."
+                    ),
+                    color=0xe67e22,
+                ),
+                ephemeral=True,
+            )
+            return
         await self._handle_add_or_remove(
             ctx,
             product_ids=[product_id],
@@ -825,11 +876,14 @@ def setup(bot: commands.Bot) -> None:
     for command in list(bot.application_commands):
         if command.name == "psn":
             bot.remove_application_command(command)
+    use_env = os.getenv("BOT_USE_ENV") == "1"
+    env_path = os.getenv("BOT_ENV_PATH") if use_env else None
+    default_pdc = os.getenv("PDC") if use_env else None
     cog = PSNCog(
         os.getenv("NPSSO"),
         bot,
-        os.getenv("PDC"),
+        default_pdc,
         _parse_allowed_guilds(os.getenv("GUILD_ID")),
-        env_path=os.getenv("BOT_ENV_PATH"),
+        env_path=env_path,
     )
     bot.add_cog(cog)

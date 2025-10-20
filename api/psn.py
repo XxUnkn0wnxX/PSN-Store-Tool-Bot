@@ -36,7 +36,7 @@ class PSN:
             except Exception:  # pragma: no cover - psnawp handles its own logging
                 print("[psn] Failed to initialize PSNAWP with provided NPSSO; account lookups disabled.")
 
-        self._fallback_pdc = default_pdc or os.getenv("PDC") or None
+        self._fallback_pdc = default_pdc
         self.env_path = Path(env_path).resolve() if env_path else None
 
         # for request
@@ -83,6 +83,12 @@ class PSN:
             if value:
                 return value
         return self._fallback_pdc
+
+    def has_pdc_fallback(self) -> bool:
+        if self.env_path and self.env_path.exists():
+            load_dotenv(self.env_path, override=True)
+            return bool(os.getenv("PDC"))
+        return self._fallback_pdc is not None
 
     @staticmethod
     def _generate_npsso() -> str:

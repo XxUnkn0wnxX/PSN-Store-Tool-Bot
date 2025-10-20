@@ -63,7 +63,7 @@ cp .env.template .env
 PDC=your_pdccws_p_cookie
 ```
 
-- `PDC` is the `pdccws_p` cookie you can grab from your browser after logging into [playstation.com](https://www.playstation.com). The bot falls back to this value when slash commands omit the cookie.
+- `PDC` is the `pdccws_p` cookie you can grab from your browser after logging into [playstation.com](https://www.playstation.com). Start the bot with `--env` to let it fall back to this value; otherwise pass the cookie with each command.
 - *(Optional)* If you still need NPSSO for account lookups, see the legacy section at the end of this README.
 
 ---
@@ -96,7 +96,7 @@ Your bot is now live and ready to add avatars or fetch PSN IDs! 🎉
 ### Optional CLI flags
 
 - `python3 bot.py --force-sync` – Force a full slash-command resync even if commands already exist in Discord. Handy after you change command definitions and want them refreshed immediately.
-- Supply your `pdccws_p` cookie at runtime or set it in `.env` as `PDC`. The add/remove slash commands will fall back to the `.env` value if you omit the cookie argument.
+- `python3 bot.py --env [path]` – Load credentials from `.env` (or the file at `path`) so the bot can fall back to `PDC`/`NPSSO` without requiring per-command overrides.
 - Cart commands generate NPSSO tokens automatically; no manual NPSSO input is required for add/remove flows.
 - Legacy prefix commands mirror the slash commands but always use the credentials in `.env`. Set `PREFIX` in `.env` (default `$`) if you want to change it.
 
@@ -112,8 +112,8 @@ The bot auto-syncs commands in every guild listed in `GUILD_ID` on startup and r
 | Command | Description |
 | --- | --- |
 | `/psn check <region> <product_id> [product_id ...]` | Fetch avatar previews without needing NPSSO/PDC overrides. |
-| `/psn add <region> <product_id>` | Add a single avatar to cart. Optional PDC override supported. |
-| `/psn remove <region> <product_id>` | Remove a single avatar from cart. Optional PDC override supported. |
+| `/psn add <region> <product_id>` | Add a single avatar to cart. Provide PDC unless the bot runs with `--env`. |
+| `/psn remove <region> <product_id>` | Remove a single avatar from cart. Provide PDC unless the bot runs with `--env`. |
 | `/psn account <username>` | Resolve a PSN username to the account ID (requires NPSSO in `.env`). |
 | `/ping`, `/tutorial`, `/credits`, `/help` | Utility commands for latency, onboarding, credits, and quick reference. |
 
@@ -124,12 +124,12 @@ The bot auto-syncs commands in every guild listed in `GUILD_ID` on startup and r
 | Command | Description |
 | --- | --- |
 | `$psn check <region> <product_id> [more ids…]` | Region-first syntax. Accepts multiple IDs separated by spaces or newlines. |
-| `$psn add <region> <product_id> [more ids…] --pdc YOUR_COOKIE` | Batch add avatars to cart. Append `--pdc` only when you need a one-off cookie. |
-| `$psn remove <region> <product_id> [more ids…] --pdc YOUR_COOKIE` | Batch remove avatars from cart. Append `--pdc` only when you need a one-off cookie. |
+| `$psn add <region> <product_id> [more ids…] --pdc YOUR_COOKIE` | Batch add avatars to cart. Required when the bot wasn't started with `--env`. |
+| `$psn remove <region> <product_id> [more ids…] --pdc YOUR_COOKIE` | Batch remove avatars from cart. Required when the bot wasn't started with `--env`. |
 | `$psn account <username>` | Lookup a PSN account ID (requires NPSSO in `.env`). |
 | `$ping`, `$tutorial`, `$credits`, `$help` | Prefix equivalents for utilities. |
 
-> ⚠️ Prefix commands delete your invoking message. Add `--pdc YOUR_COOKIE` at the end when you need to override the cookie for a single command.
+> ⚠️ Prefix commands delete your invoking message. Add `--pdc YOUR_COOKIE` at the end unless the bot is running with `--env`.
 
 #### Batch entry examples
 

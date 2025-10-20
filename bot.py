@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import argparse
 from math import ceil
@@ -10,6 +11,45 @@ import discord
 from dotenv import load_dotenv
 from discord.ext import commands
 from pathlib import Path
+
+
+def _detect_env_source() -> tuple[bool, Path | None]:
+    args = sys.argv[1:]
+    use_env = False
+    path: Path | None = None
+
+    for idx, arg in enumerate(args):
+        if arg == "--env":
+            use_env = True
+            if idx + 1 < len(args) and not args[idx + 1].startswith("-"):
+                path = Path(args[idx + 1])
+            break
+        if arg.startswith("--env="):
+            use_env = True
+            value = arg.split("=", 1)[1]
+            if value:
+                path = Path(value)
+            break
+
+    if use_env and path is None:
+        path = Path(__file__).with_name(".env")
+
+    return use_env, path
+
+
+USE_ENV_FILE, ENV_FILE_PATH = _detect_env_source()
+
+if USE_ENV_FILE:
+    if ENV_FILE_PATH:
+        load_dotenv(ENV_FILE_PATH)
+    else:
+        load_dotenv()
+    if ENV_FILE_PATH:
+        os.environ["BOT_ENV_PATH"] = str(ENV_FILE_PATH)
+    os.environ["BOT_USE_ENV"] = "1"
+else:
+    os.environ["BOT_USE_ENV"] = "0"
+    os.environ.pop("BOT_ENV_PATH", None)
 
 
 def _load_config() -> dict[str, str]:
@@ -29,13 +69,6 @@ def _load_config() -> dict[str, str]:
             config[key.strip().upper()] = value.strip()
     return config
 
-
-load_dotenv()
-env_path = Path(__file__).with_name(".env")
-if env_path.exists():
-    load_dotenv(env_path)  # resolve .env next to bot.py
-
-os.environ["BOT_ENV_PATH"] = str(env_path)
 
 config_values = _load_config()
 
@@ -459,6 +492,12 @@ async def main(args: argparse.Namespace) -> None:
     _bot_token = token
     _force_sync = bool(getattr(args, "force_sync", False))
 
+    if os.getenv("BOT_USE_ENV") != "1":
+        print("[config] .env fallback disabled; supply PDC with each command.")
+    else:
+        env_display = os.getenv("BOT_ENV_PATH") or ".env"
+        print(f"[config] Using .env fallback from {env_display}")
+
     accessible_guild_ids = await ensure_guild_membership(token, GUILD_IDS)
     if not accessible_guild_ids:
         print("[warn] Bot is not a member of any configured guilds; exiting.", flush=True)
@@ -543,6 +582,14 @@ def parse_args() -> argparse.Namespace:
         dest="force_sync",
         action="store_true",
         help="Force sync slash commands even if they already match",
+    )
+    parser.add_argument(
+        "--env",
+        dest="env_path",
+        nargs="?",
+        const="__DEFAULT__",
+        metavar="PATH",
+        help="Load credentials from a .env file (optional PATH). Without this flag, provide PDC via command options.",
     )
     return parser.parse_args()
 

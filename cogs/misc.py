@@ -69,9 +69,9 @@ def build_help_embed(prefix: str) -> discord.Embed:
             f"> `/psn check <region> <product_id> [product_id ...]`\n"
             f"> `{prefix}psn check <region> <product_id> [more IDs…]`\n\n"
             f"> `/psn add <region> <product_id>`\n"
-            f"> `{prefix}psn add <region> <product_id> [more IDs…] --pdc YOUR_COOKIE` *(optional)*\n\n"
+            f"> `{prefix}psn add <region> <product_id> [more IDs…] --pdc YOUR_COOKIE` *(required if the bot wasn't started with `--env`)*\n\n"
             f"> `/psn remove <region> <product_id>`\n"
-            f"> `{prefix}psn remove <region> <product_id> [more IDs…] --pdc YOUR_COOKIE` *(optional)*\n\n"
+            f"> `{prefix}psn remove <region> <product_id> [more IDs…] --pdc YOUR_COOKIE` *(required if the bot wasn't started with `--env`)*\n\n"
             f"> `/psn account <username>`\n"
             f"> `{prefix}psn account <username>`\n"
         ),
@@ -91,7 +91,7 @@ def build_help_embed(prefix: str) -> discord.Embed:
         ),
         inline=False,
     )
-    embed.set_footer(text="Tip: Prefix defaults to '$'. Prefix commands auto-delete your message; add `--pdc YOUR_COOKIE` at the end for a one-off cookie.")
+    embed.set_footer(text="Tip: Prefix defaults to '$'. Prefix commands auto-delete your message; add `--pdc YOUR_COOKIE` at the end whenever the bot wasn't started with `--env`.")
     return embed
 
 
