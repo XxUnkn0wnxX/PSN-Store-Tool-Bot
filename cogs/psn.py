@@ -42,11 +42,12 @@ id_desc = "ID from psprices product_id command"
 region_desc = "Region code (e.g. 'en-US' or 'US')"
 
 PDC_REQUIRED = os.getenv("BOT_USE_ENV") != "1"
-PDC_OPTION_KWARGS: dict[str, object]
 if PDC_REQUIRED:
-    PDC_OPTION_KWARGS = {"required": True}
+    DEFAULT_PDC_OPTION = MISSING
+    PDC_OPTION_KWARGS: dict[str, object] = {"default": MISSING}
 else:
-    PDC_OPTION_KWARGS = {"required": False, "default": None}
+    DEFAULT_PDC_OPTION = None
+    PDC_OPTION_KWARGS = {"default": None}
 
 COUNTRY_OVERRIDES = {
     "UK": "en-GB",
@@ -770,8 +771,10 @@ class PSNCog(commands.Cog):
         product_id2: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
         product_id3: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
         product_id4: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
-        pdc: Option(str, description=token_desc, **PDC_OPTION_KWARGS) = None,  # type: ignore[arg-type]
+        pdc: Option(str, description=token_desc, **PDC_OPTION_KWARGS) = DEFAULT_PDC_OPTION,  # type: ignore[arg-type]
     ) -> None:
+        if pdc is MISSING:
+            pdc = None
         if pdc is None and not self.api.has_pdc_fallback():
             await ctx.respond(
                 embed=discord.Embed(
@@ -803,8 +806,10 @@ class PSNCog(commands.Cog):
         product_id2: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
         product_id3: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
         product_id4: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
-        pdc: Option(str, description=token_desc, **PDC_OPTION_KWARGS) = None,  # type: ignore[arg-type]
+        pdc: Option(str, description=token_desc, **PDC_OPTION_KWARGS) = DEFAULT_PDC_OPTION,  # type: ignore[arg-type]
     ) -> None:
+        if pdc is MISSING:
+            pdc = None
         if pdc is None and not self.api.has_pdc_fallback():
             await ctx.respond(
                 embed=discord.Embed(
