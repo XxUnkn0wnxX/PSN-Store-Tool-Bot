@@ -343,6 +343,12 @@ class PSN:
 
         try:
             user = psnawp_client.user(online_id=username)
+        except PSNAWPAuthenticationError as exc:
+            raise APIError(
+                "Invalid or expired NPSSO token. Generate a fresh NPSSO cookie from your PlayStation session and try again.",
+                code="auth",
+                hints={"cookie": False, "npsso": True},
+            ) from exc
         except PSNAWPNotFound:
             raise APIError("User not found!")
 
