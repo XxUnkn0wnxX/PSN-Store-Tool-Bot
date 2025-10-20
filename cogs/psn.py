@@ -42,8 +42,8 @@ id_desc = "ID from psprices product_id command"
 region_desc = "Region code (e.g. 'en-US' or 'US')"
 
 PDC_REQUIRED = os.getenv("BOT_USE_ENV") != "1"
-DEFAULT_PDC_OPTION = MISSING if PDC_REQUIRED else None
-PDC_OPTION_KWARGS: dict[str, object] = {"default": DEFAULT_PDC_OPTION}
+MISSING = MISSING if PDC_REQUIRED else None
+PDC_OPTION_KWARGS: dict[str, object] = {"default": MISSING}
 
 COUNTRY_OVERRIDES = {
     "UK": "en-GB",
@@ -764,7 +764,7 @@ class PSNCog(commands.Cog):
         ctx: discord.ApplicationContext,
         region: Option(str, description=region_desc),  # type: ignore
         product_id: Option(str, description=id_desc),  # type: ignore
-        pdc: Option(str, description=token_desc, default=DEFAULT_PDC_OPTION),  # type: ignore[arg-type]
+        pdc: Option(str, description=token_desc, default=MISSING),  # type: ignore[arg-type]
         product_id2: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
         product_id3: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
         product_id4: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
@@ -799,7 +799,7 @@ class PSNCog(commands.Cog):
         ctx: discord.ApplicationContext,
         region: Option(str, description=region_desc),  # type: ignore
         product_id: Option(str, description=id_desc),  # type: ignore
-        pdc: Option(str, description=token_desc, default=DEFAULT_PDC_OPTION),  # type: ignore[arg-type]
+        pdc: Option(str, description=token_desc, default=MISSING),  # type: ignore[arg-type]
         product_id2: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
         product_id3: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
         product_id4: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
