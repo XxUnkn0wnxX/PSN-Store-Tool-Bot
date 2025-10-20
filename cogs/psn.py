@@ -35,7 +35,6 @@ invalid_region = discord.Embed(
     "🌍 Please use a valid region code (e.g., 'en-US', 'en-GB', 'fr-FR')",
     color=0xe74c3c)
 
-npsso_desc = "NPSSO token (leave blank to use default)"
 token_desc = "PDC cookie (leave blank to use default)"
 id_desc = "ID from psprices product_id command"
 region_desc = "Region code (e.g. 'en-US' or 'US')"
@@ -124,38 +123,54 @@ class PSNCog(commands.Cog):
         bot: commands.Bot,
         default_pdc: str | None = None,
         allowed_guild_ids: Iterable[int] | None = None,
+        env_path: str | None = None,
     ) -> None:
         self.bot = bot
-        self.api = PSN(secret, default_pdc)
+        self.api = PSN(secret, default_pdc, env_path)
         self.allowed_guild_ids: set[int] = set(allowed_guild_ids or [])
 
     @staticmethod
     def _auth_error_embed(
         base_message: str | None,
         cookie_override: bool,
-        npsso_override: bool,
         need_cookie: bool = True,
         need_npsso: bool = True,
     ) -> discord.Embed:
         headline = base_message or "PlayStation rejected the provided credentials."
-        description_lines = [
-            f"🚫 {headline}",
-            "",
-            "Please refresh the affected PlayStation credentials:",
-        ]
+        needs_guidance = need_cookie or need_npsso or cookie_override
+
+        if needs_guidance:
+            description_lines = [f"🚫 {headline}", "", "Please refresh the affected PlayStation credentials:"]
+        else:
+            description_lines = [f"🚫 {headline}"]
 
         need_cookie = bool(need_cookie)
         need_npsso = bool(need_npsso)
-        if not (need_cookie or need_npsso):
-            need_cookie = True
-            need_npsso = True
+
+        if not needs_guidance:
+            embed = discord.Embed(
+                title="🔐 Authentication Required",
+                description="\n".join(description_lines),
+                color=0xe67e22,
+            )
+            embed.set_footer(text="Need help? Run /tutorial for step-by-step token instructions.")
+            return embed
 
         if need_cookie and need_npsso:
-            description_lines.insert(1, "Detected issue with both pdccws_p cookie and NPSSO token.")
+            description_lines.insert(
+                len(description_lines) - 1,
+                "Detected issue with both the pdccws_p cookie and the bot-generated NPSSO token.",
+            )
         elif need_cookie:
-            description_lines.insert(1, "Detected issue with the pdccws_p cookie.")
+            description_lines.insert(
+                len(description_lines) - 1,
+                "Detected issue with the pdccws_p cookie.",
+            )
         elif need_npsso:
-            description_lines.insert(1, "Detected issue with the NPSSO token.")
+            description_lines.insert(
+                len(description_lines) - 1,
+                "Detected issue with the bot-generated NPSSO token.",
+            )
 
         if need_cookie:
             description_lines.append(
@@ -165,11 +180,7 @@ class PSNCog(commands.Cog):
             )
 
         if need_npsso:
-            description_lines.append(
-                "• Refresh the NPSSO token you supplied with this command."
-                if npsso_override
-                else "• Refresh the `NPSSO` value stored in your `.env` file."
-            )
+            description_lines.append("• The bot will generate a new NPSSO token automatically; retry the command or restart the bot if the issue continues.")
 
         description_lines.append("After updating, restart the bot or re-run the command with the new values.")
 
@@ -197,7 +208,8 @@ class PSNCog(commands.Cog):
         ctx: commands.Context,
         payload: str,
         operation: str,
-    ) -> tuple[str, list[str]] | None:
+        allow_cookie: bool = False,
+    ) -> tuple[str, list[str], str | None] | None:
         payload = (payload or "").strip()
         if not payload:
             usage = f"{ctx.prefix or ''}{ctx.invoked_with} <region> <product_id> [more_ids...]"
@@ -224,6 +236,35 @@ class PSNCog(commands.Cog):
             await ctx.send(embed=embed)
             return None
 
+        cookie_value: str | None = None
+        if allow_cookie and tokens:
+            lowered_last = tokens[-1].lower()
+            if lowered_last.startswith("--pdc="):
+                cookie_value = tokens[-1].split("=", 1)[1]
+                tokens = tokens[:-1]
+            elif lowered_last == "--pdc":
+                embed = discord.Embed(
+                    title="⚠️ Missing Cookie Value",
+                    description="Provide the cookie as `--pdc YOUR_COOKIE` or `--pdc=YOUR_COOKIE` at the end of the command.",
+                    color=0xf39c12,
+                )
+                await ctx.send(embed=embed, silent=True)
+                return None
+            elif len(tokens) >= 2 and tokens[-2].lower() == "--pdc":
+                cookie_value = tokens[-1]
+                tokens = tokens[:-2]
+
+        if cookie_value is not None:
+            cookie_value = cookie_value.strip()
+            if not cookie_value:
+                embed = discord.Embed(
+                    title="⚠️ Missing Cookie Value",
+                    description="Provide the cookie as `--pdc YOUR_COOKIE` or `--pdc=YOUR_COOKIE` at the end of the command.",
+                    color=0xf39c12,
+                )
+                await ctx.send(embed=embed, silent=True)
+                return None
+
         try:
             normalize_region_input(tokens[0])
         except APIError:
@@ -238,37 +279,77 @@ class PSNCog(commands.Cog):
         region = tokens[0]
         product_ids = tokens[1:]
 
-        cookie_like = [
-            pid for pid in product_ids if any(symbol in pid for symbol in ("%", "=", ";"))
-        ]
-        if cookie_like:
-            slash_equiv = {
-                "add": "add",
-                "remove": "remove",
-                "check": "check",
-            }.get(operation, "check")
-            embed = discord.Embed(
-                title="⚠️ Cookie Detected",
-                description=(
-                    "Prefix commands cannot accept NPSSO or cookie overrides. "
-                    f"Use the slash command variant (e.g. `/psn {slash_equiv}`) to supply those values."
-                ),
-                color=0xe67e22,
-            )
-            await ctx.send(embed=embed)
-            return None
+        if not allow_cookie:
+            cookie_like = [
+                pid for pid in product_ids if any(symbol in pid for symbol in ("%", "=", ";"))
+            ]
+            if cookie_like:
+                slash_equiv = {
+                    "add": "add",
+                    "remove": "remove",
+                    "check": "check",
+                }.get(operation, "check")
+                embed = discord.Embed(
+                    title="⚠️ Cookie Detected",
+                    description=(
+                        "Prefix commands cannot accept cookie overrides. "
+                        f"Use the slash command variant (e.g. `/psn {slash_equiv}`) to supply the pdccws_p cookie."
+                    ),
+                    color=0xe67e22,
+                )
+                await ctx.send(embed=embed)
+                return None
 
-        return region, product_ids
+        return region, product_ids, cookie_value
 
-    async def _send_embed(self, ctx, embed: discord.Embed, *, followup: bool = False) -> None:
+    @staticmethod
+    def _mention(ctx) -> str:
+        author = getattr(ctx, "author", None) or getattr(ctx, "user", None)
+        return author.mention if author else ""
+
+    async def _send_embed(
+        self,
+        ctx,
+        embed: discord.Embed,
+        *,
+        followup: bool = False,
+        content: str | None = None,
+        silent: bool = True,
+    ) -> None:
         if self._is_app_context(ctx):
             app_ctx = ctx  # type: ignore[assignment]
             if followup or app_ctx.response.is_done():
-                await app_ctx.followup.send(embed=embed)
+                kwargs = {"embed": embed}
+                if content:
+                    kwargs["content"] = content
+                if silent:
+                    kwargs["silent"] = True
+                await app_ctx.followup.send(**kwargs)
             else:
-                await app_ctx.respond(embed=embed)
+                kwargs = {"embed": embed}
+                if content:
+                    kwargs["content"] = content
+                if silent:
+                    kwargs["silent"] = True
+                await app_ctx.respond(**kwargs)
         else:
-            await ctx.send(embed=embed)
+            kwargs = {"embed": embed}
+            if content:
+                kwargs["content"] = content
+            if silent:
+                kwargs["silent"] = True
+            await ctx.send(**kwargs)
+
+    async def _delete_prefix_message(self, ctx) -> None:
+        if self._is_app_context(ctx):
+            return
+        message = getattr(ctx, "message", None)
+        if message is None:
+            return
+        try:
+            await message.delete()
+        except (discord.Forbidden, discord.HTTPException):
+            pass
 
     async def _handle_check(
         self,
@@ -276,22 +357,20 @@ class PSNCog(commands.Cog):
         *,
         product_ids: list[str],
         region: str,
-        cookie_arg: str | None = None,
-        npsso_arg: str | None = None,
-        cookie_override: bool = False,
-        npsso_override: bool = False,
     ) -> None:
         if not await self._ensure_allowed_guild(ctx):
             return
 
         ids = [pid.strip() for pid in product_ids if pid.strip()]
+        mention = self._mention(ctx)
+
         if not ids:
             embed = discord.Embed(
                 title="ℹ️ Missing Product IDs",
                 description="Provide at least one product ID to check.",
                 color=0xf1c40f,
             )
-            await self._send_embed(ctx, embed)
+            await self._send_embed(ctx, embed, content=mention)
             return
 
         try:
@@ -304,14 +383,9 @@ class PSNCog(commands.Cog):
                     description=f"🚫 {e}",
                     color=0xe74c3c,
                 ),
+                content=mention,
             )
             return
-
-        if cookie_arg:
-            print(f"[psn] Using custom PDC from command for {ctx.author}: {mask_value(cookie_arg)}")
-        if npsso_arg:
-            masked = npsso_arg[:4] + "…" + npsso_arg[-4:] if len(npsso_arg) > 8 else "***"
-            print(f"[psn] Using custom NPSSO from command for {ctx.author}: {masked}")
 
         is_app_context = self._is_app_context(ctx)
         is_batch = len(ids) > 1
@@ -322,20 +396,24 @@ class PSNCog(commands.Cog):
 
         if is_app_context:
             await ctx.respond(
+                content=mention,
                 embed=discord.Embed(
                     title=progress_title,
                     description=progress_desc,
                     color=0xffa726,
-                )
+                ),
+                silent=True,
             )
             progress_message = None
         else:
             progress_message = await ctx.send(
+                content=mention,
                 embed=discord.Embed(
                     title=progress_title,
                     description=progress_desc,
                     color=0xffa726,
-                )
+                ),
+                silent=True,
             )
 
         successes: list[tuple[str, str]] = []
@@ -345,8 +423,6 @@ class PSNCog(commands.Cog):
             request = PSNRequest(
                 region=region,
                 product_id=pid,
-                pdccws_p=cookie_arg,
-                npsso=npsso_arg,
             )
 
             try:
@@ -354,24 +430,6 @@ class PSNCog(commands.Cog):
                 successes.append((pid, avatar_url))
             except APIError as e:
                 message = e.message if getattr(e, "message", None) else str(e)
-                if getattr(e, "code", None) == "auth":
-                    hints = getattr(e, "hints", {}) or {}
-                    need_cookie = hints.get("cookie", True)
-                    need_npsso = hints.get("npsso", True)
-                    embed_error = self._auth_error_embed(
-                        message,
-                        cookie_override,
-                        npsso_override,
-                        need_cookie,
-                        need_npsso,
-                    )
-                    if is_app_context:
-                        await ctx.edit(embed=embed_error)
-                    elif progress_message is not None:
-                        await progress_message.edit(embed=embed_error)
-                    else:
-                        await self._send_embed(ctx, embed_error)
-                    return
                 failures.append((pid, message))
 
         followup = self._is_app_context(ctx)
@@ -392,7 +450,7 @@ class PSNCog(commands.Cog):
             elif progress_message is not None:
                 await progress_message.edit(embed=embed)
             else:
-                await self._send_embed(ctx, embed)
+                await self._send_embed(ctx, embed, content=mention)
 
         if successes:
             first_pid, first_url = successes[0]
@@ -426,9 +484,7 @@ class PSNCog(commands.Cog):
         product_ids: list[str],
         region: str,
         cookie_arg: str | None,
-        npsso_arg: str | None,
         cookie_override: bool,
-        npsso_override: bool,
         operation: str,
     ) -> None:
         if not await self._ensure_allowed_guild(ctx):
@@ -441,7 +497,7 @@ class PSNCog(commands.Cog):
                 description="Provide at least one product ID to process.",
                 color=0xf1c40f,
             )
-            await self._send_embed(ctx, embed)
+            await self._send_embed(ctx, embed, content=self._mention(ctx))
             return
 
         try:
@@ -454,26 +510,30 @@ class PSNCog(commands.Cog):
                     description=f"🚫 {e}",
                     color=0xe74c3c,
                 ),
+                content=self._mention(ctx),
             )
             return
 
         if cookie_arg:
             print(f"[psn] Using custom PDC from command for {ctx.author}: {mask_value(cookie_arg)}")
-        if npsso_arg:
-            masked = npsso_arg[:4] + "…" + npsso_arg[-4:] if len(npsso_arg) > 8 else "***"
-            print(f"[psn] Using custom NPSSO from command for {ctx.author}: {masked}")
 
         action_text = "Adding to Cart" if operation == "add" else "Removing from Cart"
         progress_description = f"⏳ Processing {len(cleaned_ids)} item(s)..."
+        mention = self._mention(ctx)
 
-        await self._send_embed(
-            ctx,
-            discord.Embed(
-                title=f"{'🛒' if operation == 'add' else '🗑️'} {action_text}...",
-                description=progress_description,
-                color=0xf39c12,
-            ),
+        is_app_context = self._is_app_context(ctx)
+
+        progress_embed = discord.Embed(
+            title=f"{'🛒' if operation == 'add' else '🗑️'} {action_text}...",
+            description=progress_description,
+            color=0xf39c12,
         )
+
+        progress_message = None
+        if is_app_context:
+            await ctx.respond(content=mention, embed=progress_embed, silent=True)
+        else:
+            progress_message = await ctx.send(content=mention, embed=progress_embed, silent=True)
 
         successes: list[str] = []
         failures: list[tuple[str, str]] = []
@@ -483,7 +543,6 @@ class PSNCog(commands.Cog):
                 region=region,
                 product_id=pid,
                 pdccws_p=cookie_arg,
-                npsso=npsso_arg,
             )
 
             try:
@@ -501,15 +560,17 @@ class PSNCog(commands.Cog):
                     embed_error = self._auth_error_embed(
                         message,
                         cookie_override,
-                        npsso_override,
                         need_cookie,
                         need_npsso,
                     )
-                    await self._send_embed(ctx, embed_error, followup=self._is_app_context(ctx))
+                    if is_app_context:
+                        await ctx.edit(embed=embed_error)
+                    elif progress_message is not None:
+                        await progress_message.edit(embed=embed_error)
+                    else:
+                        await self._send_embed(ctx, embed_error, content=mention)
                     return
                 failures.append((pid, message))
-
-        followup = self._is_app_context(ctx)
 
         if successes and not failures:
             title = "✅ Added Successfully!" if operation == "add" else "✅ Removed Successfully!"
@@ -540,7 +601,12 @@ class PSNCog(commands.Cog):
             color=color,
         )
         embed_result.set_footer(text=footer)
-        await self._send_embed(ctx, embed_result, followup=followup)
+        if is_app_context:
+            await ctx.edit(embed=embed_result)
+        elif progress_message is not None:
+            await progress_message.edit(embed=embed_result)
+        else:
+            await self._send_embed(ctx, embed_result, content=mention)
 
     async def _handle_account(self, ctx, username: str) -> None:
         if not await self._ensure_allowed_guild(ctx):
@@ -599,17 +665,11 @@ class PSNCog(commands.Cog):
         ctx: discord.ApplicationContext,
         region: Option(str, description=region_desc),  # type: ignore
         product_id: Option(str, description=id_desc),  # type: ignore
-        pdc: Option(str, description=token_desc, default=None),  # type: ignore
-        npsso: Option(str, description=npsso_desc, default=None),  # type: ignore
     ) -> None:
         await self._handle_check(
             ctx,
             product_ids=[product_id],
             region=region,
-            cookie_arg=pdc,
-            npsso_arg=npsso,
-            cookie_override=pdc is not None,
-            npsso_override=npsso is not None,
         )
 
     @psn_group.command(name="add", description="🛒 Adds the avatar you input into your cart.")
@@ -619,16 +679,13 @@ class PSNCog(commands.Cog):
         region: Option(str, description=region_desc),  # type: ignore
         product_id: Option(str, description=id_desc),  # type: ignore
         pdc: Option(str, description=token_desc, default=None),  # type: ignore
-        npsso: Option(str, description=npsso_desc, default=None),  # type: ignore
     ) -> None:
         await self._handle_add_or_remove(
             ctx,
             product_ids=[product_id],
             region=region,
             cookie_arg=pdc,
-            npsso_arg=npsso,
             cookie_override=pdc is not None,
-            npsso_override=npsso is not None,
             operation="add",
         )
 
@@ -639,16 +696,13 @@ class PSNCog(commands.Cog):
         region: Option(str, description=region_desc),  # type: ignore
         product_id: Option(str, description=id_desc),  # type: ignore
         pdc: Option(str, description=token_desc, default=None),  # type: ignore
-        npsso: Option(str, description=npsso_desc, default=None),  # type: ignore
     ) -> None:
         await self._handle_add_or_remove(
             ctx,
             product_ids=[product_id],
             region=region,
             cookie_arg=pdc,
-            npsso_arg=npsso,
             cookie_override=pdc is not None,
-            npsso_override=npsso is not None,
             operation="remove",
         )
 
@@ -664,13 +718,14 @@ class PSNCog(commands.Cog):
     async def psn_prefix(self, ctx: commands.Context) -> None:
         if not await self._ensure_allowed_guild(ctx):
             return
+        await self._delete_prefix_message(ctx)
 
         if ctx.invoked_subcommand is None:
             embed = discord.Embed(
                 title="🎮 PSN Commands",
                 description=(
                     "Use `/psn check`, `/psn add`, `/psn remove`, or `/psn account`.\n"
-                    "Prefix usage: `$psn <subcommand>` or legacy aliases like `$check_avatar`."
+                    "Prefix usage: `$psn <subcommand>` (your original message is auto-deleted)."
                 ),
                 color=0x3498db,
             )
@@ -678,120 +733,52 @@ class PSNCog(commands.Cog):
 
     @psn_prefix.command(name="check")
     async def psn_prefix_check(self, ctx: commands.Context, *, entries: str = "") -> None:
+        await self._delete_prefix_message(ctx)
         parsed = await self._prepare_prefix_batch(ctx, entries, "check")
         if parsed is None:
             return
-        region, product_ids = parsed
+        region, product_ids, _ = parsed
         await self._handle_check(
             ctx,
             product_ids=product_ids,
             region=region,
-            cookie_arg=None,
-            npsso_arg=None,
-            cookie_override=False,
-            npsso_override=False,
         )
 
     @psn_prefix.command(name="add")
     async def psn_prefix_add(self, ctx: commands.Context, *, entries: str = "") -> None:
-        parsed = await self._prepare_prefix_batch(ctx, entries, "add")
+        await self._delete_prefix_message(ctx)
+        parsed = await self._prepare_prefix_batch(ctx, entries, "add", allow_cookie=True)
         if parsed is None:
             return
-        region, product_ids = parsed
+        region, product_ids, cookie = parsed
         await self._handle_add_or_remove(
             ctx,
             product_ids=product_ids,
             region=region,
-            cookie_arg=None,
-            npsso_arg=None,
-            cookie_override=False,
-            npsso_override=False,
+            cookie_arg=cookie,
+            cookie_override=cookie is not None,
             operation="add",
         )
 
     @psn_prefix.command(name="remove")
     async def psn_prefix_remove(self, ctx: commands.Context, *, entries: str = "") -> None:
-        parsed = await self._prepare_prefix_batch(ctx, entries, "remove")
+        await self._delete_prefix_message(ctx)
+        parsed = await self._prepare_prefix_batch(ctx, entries, "remove", allow_cookie=True)
         if parsed is None:
             return
-        region, product_ids = parsed
+        region, product_ids, cookie = parsed
         await self._handle_add_or_remove(
             ctx,
             product_ids=product_ids,
             region=region,
-            cookie_arg=None,
-            npsso_arg=None,
-            cookie_override=False,
-            npsso_override=False,
+            cookie_arg=cookie,
+            cookie_override=cookie is not None,
             operation="remove",
         )
 
     @psn_prefix.command(name="account")
     async def psn_prefix_account(self, ctx: commands.Context, username: str) -> None:
-        if self._prefix_has_extra_args(ctx):
-            await self._send_embed(
-                ctx,
-                discord.Embed(
-                    title="⚠️ Extra Arguments Ignored",
-                    description="Prefix account lookup only needs the username. Remove additional arguments or use `/psn account`.",
-                    color=0xf1c40f,
-                ),
-            )
-            return
-        await self._handle_account(ctx, username)
-
-    @commands.command(name="check_avatar")
-    async def check_avatar_prefix(self, ctx: commands.Context, *, entries: str = "") -> None:
-        parsed = await self._prepare_prefix_batch(ctx, entries, "check")
-        if parsed is None:
-            return
-        region, product_ids = parsed
-        await self._handle_check(
-            ctx,
-            product_ids=product_ids,
-            region=region,
-            cookie_arg=None,
-            npsso_arg=None,
-            cookie_override=False,
-            npsso_override=False,
-        )
-
-    @commands.command(name="add_avatar")
-    async def add_avatar_prefix(self, ctx: commands.Context, *, entries: str = "") -> None:
-        parsed = await self._prepare_prefix_batch(ctx, entries, "add")
-        if parsed is None:
-            return
-        region, product_ids = parsed
-        await self._handle_add_or_remove(
-            ctx,
-            product_ids=product_ids,
-            region=region,
-            cookie_arg=None,
-            npsso_arg=None,
-            cookie_override=False,
-            npsso_override=False,
-            operation="add",
-        )
-
-    @commands.command(name="remove_avatar")
-    async def remove_avatar_prefix(self, ctx: commands.Context, *, entries: str = "") -> None:
-        parsed = await self._prepare_prefix_batch(ctx, entries, "remove")
-        if parsed is None:
-            return
-        region, product_ids = parsed
-        await self._handle_add_or_remove(
-            ctx,
-            product_ids=product_ids,
-            region=region,
-            cookie_arg=None,
-            npsso_arg=None,
-            cookie_override=False,
-            npsso_override=False,
-            operation="remove",
-        )
-
-    @commands.command(name="account_id")
-    async def account_id_prefix(self, ctx: commands.Context, username: str) -> None:
+        await self._delete_prefix_message(ctx)
         if self._prefix_has_extra_args(ctx):
             await self._send_embed(
                 ctx,
@@ -831,5 +818,6 @@ def setup(bot: commands.Bot) -> None:
         bot,
         os.getenv("PDC"),
         _parse_allowed_guilds(os.getenv("GUILD_ID")),
+        env_path=os.getenv("BOT_ENV_PATH"),
     )
     bot.add_cog(cog)

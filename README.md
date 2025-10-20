@@ -19,24 +19,9 @@ Built for convenience and PlayStation fans! 💙
 
 Before running the bot, you'll need:
 
-- ✅ A valid **NPSSO token** (for PSN API access)
+- ✅ A valid **pdccws_p cookie** (PDC) from [playstation.com](https://www.playstation.com)
 - ✅ Your **Discord bot token**
 - ✅ The **Discord server ID(s)** you want the bot to run in (list all allowed servers)
-
----
-
-## 🔐 How to Get Your NPSSO Token
-
-1. Log in to your PlayStation account at [playstation.com](https://www.playstation.com)
-2. Open this URL:  
-   👉 [`https://ca.account.sony.com/api/v1/ssocookie`](https://ca.account.sony.com/api/v1/ssocookie)
-3. Find this line in the response:
-   ```json
-   {"npsso":"your-64-character-token"}
-   ```
-4. Copy the token and save it — you’ll need it in `.env`
-
----
 
 ## 🚀 Getting Started
 
@@ -75,12 +60,11 @@ cp .env.template .env
 ```
 
 ```
-NPSSO=your_64_char_npsso_token
-PDC=optional_pdccws_p_cookie
+PDC=your_pdccws_p_cookie
 ```
 
-- `NPSSO` is required for PSN API calls.
-- `PDC` is the `pdccws_p` cookie you can grab from your browser after logging into [playstation.com](https://www.playstation.com). It’s optional; if omitted, supply it as an override when commands ask for it.
+- `PDC` is the `pdccws_p` cookie you can grab from your browser after logging into [playstation.com](https://www.playstation.com). The bot falls back to this value when slash commands omit the cookie.
+- *(Optional)* If you still need NPSSO for account lookups, see the legacy section at the end of this README.
 
 ---
 
@@ -112,8 +96,8 @@ Your bot is now live and ready to add avatars or fetch PSN IDs! 🎉
 ### Optional CLI flags
 
 - `python3 bot.py --force-sync` – Force a full slash-command resync even if commands already exist in Discord. Handy after you change command definitions and want them refreshed immediately.
-- Supply your `pdccws_p` cookie at runtime or set it in `.env` as `PDC`. The slash commands will fall back to the `.env` value if you omit the cookie argument.
-- Need to hit a different PlayStation account? Provide an `NPSSO` value in the slash command, otherwise the `.env` `NPSSO` is used.
+- Supply your `pdccws_p` cookie at runtime or set it in `.env` as `PDC`. The add/remove slash commands will fall back to the `.env` value if you omit the cookie argument.
+- Cart commands generate NPSSO tokens automatically; no manual NPSSO input is required for add/remove flows.
 - Legacy prefix commands mirror the slash commands but always use the credentials in `.env`. Set `PREFIX` in `.env` (default `$`) if you want to change it.
 
 The bot auto-syncs commands in every guild listed in `GUILD_ID` on startup and refuses to run in other servers. Forced syncs and the built-in verifier ensure commands appear even if Discord is slow to propagate them across all configured guilds.
@@ -127,36 +111,36 @@ The bot auto-syncs commands in every guild listed in `GUILD_ID` on startup and r
 
 | Command | Description |
 | --- | --- |
-| `/psn check <region> <product_id> [product_id ...]` | Fetch avatar previews. Optional NPSSO/PDC overrides accepted via command options. |
-| `/psn add <region> <product_id>` | Add a single avatar to cart. Optional NPSSO/PDC overrides supported. |
-| `/psn remove <region> <product_id>` | Remove a single avatar from cart. |
-| `/psn account <username>` | Resolve a PSN username to the account ID. |
+| `/psn check <region> <product_id> [product_id ...]` | Fetch avatar previews without needing NPSSO/PDC overrides. |
+| `/psn add <region> <product_id>` | Add a single avatar to cart. Optional PDC override supported. |
+| `/psn remove <region> <product_id>` | Remove a single avatar from cart. Optional PDC override supported. |
+| `/psn account <username>` | Resolve a PSN username to the account ID (requires NPSSO in `.env`). |
 | `/ping`, `/tutorial`, `/credits`, `/help` | Utility commands for latency, onboarding, credits, and quick reference. |
 
-> ℹ️ Slash commands accept overrides for NPSSO/PDC even if they are set in `.env`. If omitted, the bot falls back to the `.env` values.
+> ℹ️ The add/remove slash commands accept optional PDC overrides and auto-generate NPSSO tokens. `/psn account` will only work when an NPSSO is configured in `.env`.
 
 ### Prefix commands (default `$`)
 
 | Command | Description |
 | --- | --- |
-| `$psn check <region> <product_id> [more ids…]` | Region-first syntax. Accepts multiple IDs separated by spaces or newlines. Shows an embed per ID. Alias: `$check_avatar`. |
-| `$psn add <region> <product_id> [more ids…]` | Batch add avatars to cart. Alias: `$add_avatar`. |
-| `$psn remove <region> <product_id> [more ids…]` | Batch remove avatars from cart. Alias: `$remove_avatar`. |
-| `$psn account <username>` | Lookup a PSN account ID. Alias: `$account_id`. |
-| `$ping`, `$tutorial`, `$credits`, `$help` | Prefix equivalents for utility commands. |
+| `$psn check <region> <product_id> [more ids…]` | Region-first syntax. Accepts multiple IDs separated by spaces or newlines. |
+| `$psn add <region> <product_id> [more ids…] --pdc YOUR_COOKIE` | Batch add avatars to cart. Append `--pdc` only when you need a one-off cookie. |
+| `$psn remove <region> <product_id> [more ids…] --pdc YOUR_COOKIE` | Batch remove avatars from cart. Append `--pdc` only when you need a one-off cookie. |
+| `$psn account <username>` | Lookup a PSN account ID (requires NPSSO in `.env`). |
+| `$ping`, `$tutorial`, `$credits`, `$help` | Prefix equivalents for utilities. |
 
-> ⚠️ Prefix commands always use the credentials defined in `.env`. Passing NPSSO or cookie overrides via prefix is blocked — use the slash command instead.
+> ⚠️ Prefix commands delete your invoking message. Add `--pdc YOUR_COOKIE` at the end when you need to override the cookie for a single command.
 
 #### Batch entry examples
 
 ```
-$psn check en-US
+$psn check en-AU
 EP4293-CUSA15900_00-AV00000000000005
 EP4067-NPEB01320_00-AVPOPULUSM000177
 ```
 
 ```
-$psn add au EP4293-CUSA15900_00-AV00000000000005 EP4067-NPEB01320_00-AVPOPULUSM000177
+$psn add au EP4293-CUSA15900_00-AV00000000000005 EP4067-NPEB01320_00-AVPOPULUSM000177 --pdc MY_PDCCWS_COOKIE
 ```
 
 Each ID is processed individually; the bot sends the familiar avatar preview embed for every success and a summary for any failures.
@@ -165,11 +149,28 @@ Each ID is processed individually; the bot sends the familiar avatar preview emb
 
 ## 📝 TODO
 
-- [ ] Store NPSSO/PDC values in an encrypted local database to support multiple users safely.
-  - [ ] Add a slash command to capture NPSSO/PDC and persist it securely.
+- [ ] Store PDC values in an encrypted local database to support multiple users safely.
 - [ ] Add a `--env` CLI flag so the bot can explicitly load credentials from `.env` when desired.
 - [ ] Build a per-user cart UI with buttons to review/remove queued items.
 - [ ] Add buttons to avatar preview embeds so users can add items to cart directly.
+
+
+---
+
+## 📚 Legacy NPSSO Reference
+
+NPSSO tokens are no longer required for cart operations, but you can still generate one if you want `/psn account` or other advanced PSN features.
+
+1. Log in to your PlayStation account at [playstation.com](https://www.playstation.com)
+2. Open this URL:  
+   👉 [`https://ca.account.sony.com/api/v1/ssocookie`](https://ca.account.sony.com/api/v1/ssocookie)
+3. Look for the line containing:
+   ```json
+   {"npsso":"your-64-character-token"}
+   ```
+4. Copy the token and add it to your `.env` file as `NPSSO=...`
+
+---
 
 ## 💬 Support & Feedback
 

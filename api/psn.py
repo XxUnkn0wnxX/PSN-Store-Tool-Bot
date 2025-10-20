@@ -1,9 +1,13 @@
+import os
 import discord
 import aiohttp
 import json
 import re
+import secrets
 from enum import Enum
 from dataclasses import dataclass
+from pathlib import Path
+from dotenv import load_dotenv
 from psnawp_api import PSNAWP
 from psnawp_api.core.psnawp_exceptions import PSNAWPNotFoundError as PSNAWPNotFound
 from api.common import APIError
@@ -23,11 +27,16 @@ class PSNRequest:
     npsso: str | None = None
 
 class PSN:
-    def __init__(self, npsso: str, default_pdc: str | None = None):
-        self.default_npsso = npsso
-        self.psnawp = PSNAWP(self.default_npsso)
+    def __init__(self, npsso: str | None, default_pdc: str | None = None, env_path: str | Path | None = None):
+        self.psnawp = None
+        if npsso:
+            try:
+                self.psnawp = PSNAWP(npsso)
+            except Exception:  # pragma: no cover - psnawp handles its own logging
+                print("[psn] Failed to initialize PSNAWP with provided NPSSO; account lookups disabled.")
 
-        self.default_pdc = default_pdc or None
+        self._fallback_pdc = default_pdc or os.getenv("PDC") or None
+        self.env_path = Path(env_path).resolve() if env_path else None
 
         # for request
         self.url = ""
@@ -50,8 +59,11 @@ class PSN:
         return region.replace("-", "/")
 
     def _resolve_credentials(self, request: PSNRequest) -> tuple[str, str]:
-        cookie_value = request.pdccws_p or self.default_pdc
-        npsso_value = request.npsso or self.default_npsso
+        cookie_value = request.pdccws_p or self._read_env_cookie()
+        npsso_value = request.npsso or self._generate_npsso()
+
+        if request.pdccws_p:
+            print(f"[psn] Generated NPSSO for request: {npsso_value}")
 
         if not cookie_value:
             raise APIError(
@@ -60,14 +72,19 @@ class PSN:
                 hints={"cookie": True, "npsso": False},
             )
 
-        if not npsso_value:
-            raise APIError(
-                "Missing NPSSO token. Provide it in the command or set NPSSO in .env.",
-                code="auth",
-                hints={"cookie": False, "npsso": True},
-            )
-
         return cookie_value, npsso_value
+
+    def _read_env_cookie(self) -> str | None:
+        if self.env_path and self.env_path.exists():
+            load_dotenv(self.env_path, override=True)
+            value = os.getenv("PDC")
+            if value:
+                return value
+        return self._fallback_pdc
+
+    @staticmethod
+    def _generate_npsso() -> str:
+        return secrets.token_hex(32)
 
     @staticmethod
     def _classify_auth_components(message: str | None, status: int | None = None) -> tuple[bool, bool]:
@@ -87,6 +104,11 @@ class PSN:
             "pdc",
             "pdccws_p",
             "signin cookie",
+            "access denied",
+            "authorised",
+            "unauthorized",
+            "missing access",
+            "forbidden",
         )
         npsso_keywords = (
             "npsso",
@@ -106,9 +128,12 @@ class PSN:
         if not cookie and not npsso:
             if status in {401, 403}:
                 return True, True
+            return False, False
+
+        if status in {401, 403}:
             return True, True
 
-        return cookie or status in {401, 403}, npsso or status in {401, 403}
+        return cookie, npsso
 
     @staticmethod
     def _looks_like_auth_error(message: str | None) -> bool:
@@ -165,7 +190,7 @@ class PSN:
 
     def request_builder(self, request: PSNRequest, operation: PSNOperation) -> None:
         region_path = self._format_region_path(request.region)
-        cookie_value, npsso_value = self._resolve_credentials(request)
+
         match operation:
             case PSNOperation.CHECK_AVATAR:
                 self.url = f"https://store.playstation.com/store/api/chihiro/00_09_000/container/{region_path}/19/{request.product_id}/"
@@ -173,9 +198,12 @@ class PSN:
                 "Origin": "https://checkout.playstation.com",
                 "content-type": "application/json",
                 "Accept-Language": request.region,
-                "Cookie": f"AKA_A2=A; pdccws_p={cookie_value}; isSignedIn=true; userinfo={npsso_value}; p=0; gpdcTg=%5B1%5D"
                 }
+                return
 
+        cookie_value, npsso_value = self._resolve_credentials(request)
+
+        match operation:
             case PSNOperation.ADD_TO_CART:
                 self.url = "https://web.np.playstation.com/api/graphql/v1/op"
                 self.headers = {
@@ -276,6 +304,12 @@ class PSN:
             raise APIError(err, code=code, hints={"cookie": cookie_hint, "npsso": npsso_hint})
 
     async def obtain_account_id(self, username: str) -> str:
+        if self.psnawp is None:
+            raise APIError(
+                "NPSSO is not configured. Set NPSSO in the environment to enable account lookups.",
+                code="auth",
+                hints={"cookie": False, "npsso": True},
+            )
         if len(username) < 3 or len(username) > 16:
             raise APIError("Invalid username!")
         elif not bool(USERNAME_PATTERN.fullmatch(username)):

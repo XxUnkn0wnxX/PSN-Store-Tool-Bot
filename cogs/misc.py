@@ -67,13 +67,13 @@ def build_help_embed(prefix: str) -> discord.Embed:
         name="🎮 PSN Avatar Tools",
         value=(
             f"> `/psn check <region> <product_id> [product_id ...]`\n"
-            f"> `{prefix}psn check <region> <product_id> [more IDs…]` (alias: `{prefix}check_avatar`)\n\n"
+            f"> `{prefix}psn check <region> <product_id> [more IDs…]`\n\n"
             f"> `/psn add <region> <product_id>`\n"
-            f"> `{prefix}psn add <region> <product_id> [more IDs…]` (alias: `{prefix}add_avatar`)\n\n"
+            f"> `{prefix}psn add <region> <product_id> [more IDs…] --pdc YOUR_COOKIE` *(optional)*\n\n"
             f"> `/psn remove <region> <product_id>`\n"
-            f"> `{prefix}psn remove <region> <product_id> [more IDs…]` (alias: `{prefix}remove_avatar`)\n\n"
+            f"> `{prefix}psn remove <region> <product_id> [more IDs…] --pdc YOUR_COOKIE` *(optional)*\n\n"
             f"> `/psn account <username>`\n"
-            f"> `{prefix}psn account <username>` (alias: `{prefix}account_id`)\n"
+            f"> `{prefix}psn account <username>`\n"
         ),
         inline=False,
     )
@@ -91,7 +91,7 @@ def build_help_embed(prefix: str) -> discord.Embed:
         ),
         inline=False,
     )
-    embed.set_footer(text="Tip: Prefix defaults to '$' but can be configured via the PREFIX env var.")
+    embed.set_footer(text="Tip: Prefix defaults to '$'. Prefix commands auto-delete your message; add `--pdc YOUR_COOKIE` at the end for a one-off cookie.")
     return embed
 
 
@@ -124,6 +124,10 @@ class Misc(commands.Cog):
             color=0x2ecc71,
         )
         embed.set_footer(text="🤖 Bot is running smoothly!")
+        try:
+            await ctx.message.delete()
+        except (discord.Forbidden, discord.HTTPException):
+            pass
         await ctx.send(embed=embed)
 
     @discord.slash_command(description="📚 Shows how to use the bot.")
@@ -136,6 +140,10 @@ class Misc(commands.Cog):
     async def tutorial_command(self, ctx: commands.Context) -> None:
         if not await self._ensure_allowed_guild(ctx):
             return
+        try:
+            await ctx.message.delete()
+        except (discord.Forbidden, discord.HTTPException):
+            pass
         await ctx.send(embed=tutorialemb)
 
     @discord.slash_command(description="👥 Shows credits and bot information.")
@@ -148,6 +156,10 @@ class Misc(commands.Cog):
     async def credits_command(self, ctx: commands.Context) -> None:
         if not await self._ensure_allowed_guild(ctx):
             return
+        try:
+            await ctx.message.delete()
+        except (discord.Forbidden, discord.HTTPException):
+            pass
         await ctx.send(embed=creditsemb)
 
     @discord.slash_command(description="🆘 Shows slash commands and their prefix equivalents.")
@@ -162,6 +174,10 @@ class Misc(commands.Cog):
         if not await self._ensure_allowed_guild(ctx):
             return
         prefix = os.getenv("PREFIX", "$")
+        try:
+            await ctx.message.delete()
+        except (discord.Forbidden, discord.HTTPException):
+            pass
         await ctx.send(embed=build_help_embed(prefix))
 
     async def _ensure_allowed_guild(self, ctx) -> bool:

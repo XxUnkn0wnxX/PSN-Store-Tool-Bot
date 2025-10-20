@@ -35,6 +35,8 @@ env_path = Path(__file__).with_name(".env")
 if env_path.exists():
     load_dotenv(env_path)  # resolve .env next to bot.py
 
+os.environ["BOT_ENV_PATH"] = str(env_path)
+
 config_values = _load_config()
 
 token_config = config_values.get("TOKEN", "").strip()
@@ -51,9 +53,6 @@ os.environ["PREFIX"] = prefix_config
 guild_config_parts = [part.strip() for part in guild_config_raw.split(",") if part.strip()]
 if not guild_config_parts:
     raise SystemExit("GUILD_ID must define at least one Discord server ID.")
-
-if not os.getenv("NPSSO"):
-    raise SystemExit("Missing NPSSO in environment (.env)")
 
 try:
     GUILD_IDS: list[int] = [int(part) for part in guild_config_parts]
