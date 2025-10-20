@@ -1,5 +1,5 @@
 <h1 align="center">🎮 PSNToolBot</h1>
-<p align="center">A Discord bot for PS3 avatar tools & PSN account lookups</p>
+<p align="center">A Discord bot for PS3/PS4 avatar tools & PSN account lookups</p>
 
 ---
 
@@ -28,7 +28,7 @@ Before running the bot, you'll need:
 Clone the repository and install dependencies:
 
 ```bash
-git clone https://github.com/yourusername/PSNToolBot.git
+git clone https://github.com/XxUnkn0wnxX/PSNToolBot.git
 cd PSNToolBot
 pip install -r requirements.txt
 ```
@@ -175,7 +175,7 @@ NPSSO tokens are no longer required for cart operations, but you can still gener
 ## 💬 Support & Feedback
 
 Have issues or ideas?  
-Open an [issue](https://github.com/yourusername/PSNToolBot/issues) or submit a pull request!
+Open an [issue](https://github.com/XxUnkn0wnxX/PSN-Store-Tool-Bot/issues) or submit a pull request!
 
 ---
 
