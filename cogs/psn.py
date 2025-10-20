@@ -1,6 +1,7 @@
 import os
 from typing import Iterable
 
+import re
 import discord
 from discord import Option
 from discord.ext import commands
@@ -93,6 +94,14 @@ def mask_value(value: str, visible: int = 4) -> str:
     if len(value) <= visible * 2:
         return value[:visible] + "…" if len(value) > visible else "***"
     return f"{value[:visible]}…{value[-visible:]}"
+
+
+def highlight_container_refs(text: str) -> str:
+    if not text:
+        return text
+    def repl(match):
+        return f"containerId=`{match.group(1)}`"
+    return re.sub(r"containerId=([A-Za-z0-9_-]+)", repl, text)
 
 
 def collect_product_ids(*ids: str | None) -> list[str]:
@@ -479,9 +488,15 @@ class PSNCog(commands.Cog):
 
         if failures:
             heading = "⚠️ Some Avatars Failed" if successes else "❌ All Avatars Failed"
+            formatted_failures = [
+                (pid, highlight_container_refs(msg)) for pid, msg in failures
+            ]
             failure_summary = discord.Embed(
                 title=heading,
-                description="\n".join(f"• **{pid}** — {msg}" for pid, msg in failures) or "No avatars matched the provided IDs.",
+                description="\n".join(
+                    f"• **{pid}** — {msg}" for pid, msg in formatted_failures
+                )
+                or "No avatars matched the provided IDs.",
                 color=0xf1c40f if successes else 0xe74c3c,
             )
             failure_summary.set_footer(text="💡 Review the failed entries and try again.")
@@ -657,10 +672,11 @@ class PSNCog(commands.Cog):
                 lines.append(f"✅ **{pid}** *({status_text})*")
             else:
                 lowered = (message or "").lower()
+                formatted_message = highlight_container_refs(message or "")
                 if "already" in lowered and "cart" in lowered:
                     reason = "already in cart" if operation == "add" else "already removed"
                 else:
-                    reason = message or "failed"
+                    reason = formatted_message or "failed"
                 lines.append(f"❌ **{pid}** *({reason})*")
 
         embed_result = discord.Embed(
