@@ -720,6 +720,7 @@ class PSNCog(commands.Cog):
         if not await self._ensure_allowed_guild(ctx):
             return
 
+        mention = self._mention(ctx)
         progress_embed = discord.Embed(
             title="🔍 Searching User...",
             description=f"⏳ Looking up **{username}** on PlayStation Network...",
@@ -728,10 +729,10 @@ class PSNCog(commands.Cog):
 
         is_app_context = self._is_app_context(ctx)
         if is_app_context:
-            await ctx.respond(embed=progress_embed)
+            await ctx.respond(content=mention, embed=progress_embed)
             progress_message = None
         else:
-            progress_message = await ctx.send(embed=progress_embed)
+            progress_message = await ctx.send(content=mention, embed=progress_embed, silent=True)
 
         try:
             accid = await self.api.obtain_account_id(username)
@@ -747,7 +748,7 @@ class PSNCog(commands.Cog):
             elif progress_message is not None:
                 await progress_message.edit(embed=embed_error)
             else:
-                await ctx.send(embed=embed_error)
+                await self._send_embed(ctx, embed_error, content=mention)
             return
 
         embed_success = discord.Embed(
@@ -761,7 +762,7 @@ class PSNCog(commands.Cog):
         elif progress_message is not None:
             await progress_message.edit(embed=embed_success)
         else:
-            await ctx.send(embed=embed_success)
+            await self._send_embed(ctx, embed_success, content=mention)
 
     psn_group = discord.SlashCommandGroup(
         "psn", description="PlayStation Store avatar utilities."
