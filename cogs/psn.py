@@ -478,8 +478,9 @@ class PSNCog(commands.Cog):
                 embeds_to_send.append(make_success_embed(pid, avatar_url, index, total_success))
 
         if failures:
+            heading = "⚠️ Some Avatars Failed" if successes else "❌ All Avatars Failed"
             failure_summary = discord.Embed(
-                title="⚠️ Some Avatars Failed",
+                title=heading,
                 description="\n".join(f"• **{pid}** — {msg}" for pid, msg in failures) or "No avatars matched the provided IDs.",
                 color=0xf1c40f if successes else 0xe74c3c,
             )
