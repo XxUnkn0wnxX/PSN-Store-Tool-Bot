@@ -351,15 +351,11 @@ class PSNCog(commands.Cog):
                 kwargs = {"embed": embed}
                 if content:
                     kwargs["content"] = content
-                if silent:
-                    kwargs["silent"] = True
                 await app_ctx.followup.send(**kwargs)
             else:
                 kwargs = {"embed": embed}
                 if content:
                     kwargs["content"] = content
-                if silent:
-                    kwargs["silent"] = True
                 await app_ctx.respond(**kwargs)
         else:
             kwargs = {"embed": embed}
@@ -432,7 +428,6 @@ class PSNCog(commands.Cog):
                     description=progress_desc,
                     color=0xffa726,
                 ),
-                silent=True,
             )
             progress_message = None
         else:
@@ -577,7 +572,7 @@ class PSNCog(commands.Cog):
 
         progress_message = None
         if is_app_context:
-            await ctx.respond(content=mention, embed=progress_embed, silent=True)
+            await ctx.respond(content=mention, embed=progress_embed)
         else:
             progress_message = await ctx.send(content=mention, embed=progress_embed, silent=True)
 
@@ -761,7 +756,6 @@ class PSNCog(commands.Cog):
                     ),
                     color=0xe67e22,
                 ),
-                ephemeral=True,
             )
             return
         product_ids = [product_id] + collect_product_ids(product_id2, product_id3, product_id4)
@@ -795,7 +789,6 @@ class PSNCog(commands.Cog):
                     ),
                     color=0xe67e22,
                 ),
-                ephemeral=True,
             )
             return
         product_ids = [product_id] + collect_product_ids(product_id2, product_id3, product_id4)
