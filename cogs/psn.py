@@ -40,6 +40,7 @@ token_desc = "PDC cookie (required)"
 id_desc = "ID from psprices product_id command"
 region_desc = "Region code (e.g. 'en-US' or 'US')"
 npsso_desc = "NPSSO token from https://www.playstation.com (required for account lookups)"
+NPSSO_HELP_LINK = "🔐 Need a token? [Get NPSSO](https://ca.account.sony.com/api/v1/ssocookie) after logging into [PlayStation](https://www.playstation.com/)."
 
 COUNTRY_OVERRIDES = {
     "UK": "en-GB",
@@ -740,7 +741,7 @@ class PSNCog(commands.Cog):
         except APIError as e:
             embed_error = discord.Embed(
                 title="❌ Account Lookup Failed",
-                description=f"🚫 {e}",
+                description=f"🚫 {e}\n\n{NPSSO_HELP_LINK}",
                 color=0xe74c3c,
             )
             embed_error.set_footer(text="💡 Verify the username and NPSSO token, then try again!")
@@ -984,7 +985,10 @@ class PSNCog(commands.Cog):
                 if idx + 1 >= len(tokens):
                     embed = discord.Embed(
                         title="⚠️ Missing NPSSO Value",
-                        description="Provide the NPSSO token immediately after `--npsso`.",
+                        description=(
+                            "Provide the NPSSO token immediately after `--npsso`.\n\n"
+                            f"{NPSSO_HELP_LINK}"
+                        ),
                         color=0xf39c12,
                     )
                     await self._send_embed(ctx, embed, content=mention)
@@ -1004,7 +1008,10 @@ class PSNCog(commands.Cog):
         if not npsso_value or not npsso_value.strip():
             embed = discord.Embed(
                 title="ℹ️ Missing NPSSO Token",
-                description="Provide your NPSSO token using `--npsso YOUR_TOKEN` at the end of the command.",
+                description=(
+                    "Provide your NPSSO token using `--npsso YOUR_TOKEN` at the end of the command.\n\n"
+                    f"{NPSSO_HELP_LINK}"
+                ),
                 color=0xf1c40f,
             )
             await self._send_embed(ctx, embed, content=mention)
