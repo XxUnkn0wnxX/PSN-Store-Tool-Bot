@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from dotenv import load_dotenv
 from psnawp_api import PSNAWP
-from psnawp_api.core.psnawp_exceptions import PSNAWPNotFoundError as PSNAWPNotFound
+from psnawp_api.core.psnawp_exceptions import PSNAWPNotFoundError as PSNAWPNotFound, PSNAWPAuthenticationError
 from api.common import APIError
 
 USERNAME_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
@@ -311,24 +311,42 @@ class PSN:
             code = "auth" if self._looks_like_auth_error(err) else None
             raise APIError(err, code=code, hints={"cookie": cookie_hint, "npsso": npsso_hint})
 
-    async def obtain_account_id(self, username: str) -> str:
-        if self.psnawp is None:
+    async def obtain_account_id(self, username: str, npsso: str | None) -> str:
+        if not npsso or not npsso.strip():
             raise APIError(
-                "NPSSO is not configured. Set NPSSO in the environment to enable account lookups.",
+                "NPSSO token is required for account lookups. Provide it with the command.",
                 code="auth",
                 hints={"cookie": False, "npsso": True},
             )
+
+        token = npsso.strip()
+
+        try:
+            psnawp_client = PSNAWP(token)
+        except PSNAWPAuthenticationError as exc:
+            raise APIError(
+                "Invalid or expired NPSSO token. Generate a fresh NPSSO cookie from your PlayStation session and try again.",
+                code="auth",
+                hints={"cookie": False, "npsso": True},
+            ) from exc
+        except Exception as exc:  # pragma: no cover - psnawp handles own logging
+            raise APIError(
+                "Unable to initialize PlayStation client with the supplied NPSSO token.",
+                code="auth",
+                hints={"cookie": False, "npsso": True},
+            ) from exc
+
         if len(username) < 3 or len(username) > 16:
             raise APIError("Invalid username!")
         elif not bool(USERNAME_PATTERN.fullmatch(username)):
             raise APIError("Invalid username!")
-        
+
         try:
-            user = self.psnawp.user(online_id=username)
+            user = psnawp_client.user(online_id=username)
         except PSNAWPNotFound:
             raise APIError("User not found!")
-        
-        user_id = hex(int(user.account_id)) # convert decimal to hex
-        user_id = user_id[2:] # remove 0x
-        user_id = user_id.zfill(16) # pad to 16 length with zeros
+
+        user_id = hex(int(user.account_id))  # convert decimal to hex
+        user_id = user_id[2:]  # remove 0x
+        user_id = user_id.zfill(16)  # pad to 16 length with zeros
         return user_id

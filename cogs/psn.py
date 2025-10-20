@@ -39,6 +39,7 @@ invalid_region = discord.Embed(
 token_desc = "PDC cookie (required)"
 id_desc = "ID from psprices product_id command"
 region_desc = "Region code (e.g. 'en-US' or 'US')"
+npsso_desc = "NPSSO token from https://www.playstation.com (required for account lookups)"
 
 COUNTRY_OVERRIDES = {
     "UK": "en-GB",
@@ -716,7 +717,7 @@ class PSNCog(commands.Cog):
         else:
             await self._send_embed(ctx, embed_result, content=mention)
 
-    async def _handle_account(self, ctx, username: str) -> None:
+    async def _handle_account(self, ctx, username: str, npsso: str | None) -> None:
         if not await self._ensure_allowed_guild(ctx):
             return
 
@@ -735,14 +736,14 @@ class PSNCog(commands.Cog):
             progress_message = await ctx.send(content=mention, embed=progress_embed, silent=True)
 
         try:
-            accid = await self.api.obtain_account_id(username)
+            accid = await self.api.obtain_account_id(username, npsso)
         except APIError as e:
             embed_error = discord.Embed(
-                title="❌ User Not Found",
+                title="❌ Account Lookup Failed",
                 description=f"🚫 {e}",
                 color=0xe74c3c,
             )
-            embed_error.set_footer(text="💡 Check the username and try again!")
+            embed_error.set_footer(text="💡 Verify the username and NPSSO token, then try again!")
             if is_app_context:
                 await ctx.edit(embed=embed_error)
             elif progress_message is not None:
@@ -859,8 +860,9 @@ class PSNCog(commands.Cog):
         self,
         ctx: discord.ApplicationContext,
         username: Option(str, description="PSN username to resolve."),  # type: ignore
+        npsso: Option(str, description=npsso_desc, required=True),  # type: ignore[arg-type]
     ) -> None:
-        await self._handle_account(ctx, username)
+        await self._handle_account(ctx, username, npsso)
 
     @commands.group(name="psn", invoke_without_command=True)
     async def psn_prefix(self, ctx: commands.Context) -> None:
@@ -925,19 +927,90 @@ class PSNCog(commands.Cog):
         )
 
     @psn_prefix.command(name="account")
-    async def psn_prefix_account(self, ctx: commands.Context, username: str) -> None:
+    async def psn_prefix_account(self, ctx: commands.Context, *, entries: str = "") -> None:
         await self._delete_prefix_message(ctx)
-        if self._prefix_has_extra_args(ctx):
-            await self._send_embed(
-                ctx,
-                discord.Embed(
-                    title="⚠️ Extra Arguments Ignored",
-                    description="Prefix account lookup only needs the username. Remove additional arguments or use `/psn account`.",
-                    color=0xf1c40f,
+        mention = self._mention(ctx)
+
+        payload = (entries or "").strip()
+        if not payload:
+            usage = f"{ctx.prefix or ''}{ctx.invoked_with} account <username> --npsso YOUR_TOKEN"
+            embed = discord.Embed(
+                title="ℹ️ Missing Arguments",
+                description=(
+                    "Provide a PSN username followed by your NPSSO token.\n"
+                    f"Example: `{usage}`"
                 ),
+                color=0xf1c40f,
             )
+            await self._send_embed(ctx, embed, content=mention)
             return
-        await self._handle_account(ctx, username)
+
+        tokens: list[str] = []
+        for line in payload.replace("\r", "\n").splitlines():
+            tokens.extend(part.strip() for part in line.split())
+
+        tokens = [t for t in tokens if t]
+        if not tokens:
+            usage = f"{ctx.prefix or ''}{ctx.invoked_with} account <username> --npsso YOUR_TOKEN"
+            embed = discord.Embed(
+                title="ℹ️ Missing Arguments",
+                description=(
+                    "Provide a PSN username followed by your NPSSO token.\n"
+                    f"Example: `{usage}`"
+                ),
+                color=0xf1c40f,
+            )
+            await self._send_embed(ctx, embed, content=mention)
+            return
+
+        username = tokens[0]
+        if username.startswith("--"):
+            embed = discord.Embed(
+                title="ℹ️ Missing Username",
+                description="The first argument must be the PSN username before any options.",
+                color=0xf1c40f,
+            )
+            await self._send_embed(ctx, embed, content=mention)
+            return
+
+        npsso_value: str | None = None
+        idx = 1
+        while idx < len(tokens):
+            token = tokens[idx]
+            lowered = token.lower()
+            if lowered.startswith("--npsso="):
+                npsso_value = token.split("=", 1)[1]
+            elif lowered == "--npsso":
+                if idx + 1 >= len(tokens):
+                    embed = discord.Embed(
+                        title="⚠️ Missing NPSSO Value",
+                        description="Provide the NPSSO token immediately after `--npsso`.",
+                        color=0xf39c12,
+                    )
+                    await self._send_embed(ctx, embed, content=mention)
+                    return
+                npsso_value = tokens[idx + 1]
+                idx += 1
+            else:
+                embed = discord.Embed(
+                    title="⚠️ Invalid Argument",
+                    description="Only the username and `--npsso` option are supported for this command.",
+                    color=0xf39c12,
+                )
+                await self._send_embed(ctx, embed, content=mention)
+                return
+            idx += 1
+
+        if not npsso_value or not npsso_value.strip():
+            embed = discord.Embed(
+                title="ℹ️ Missing NPSSO Token",
+                description="Provide your NPSSO token using `--npsso YOUR_TOKEN` at the end of the command.",
+                color=0xf1c40f,
+            )
+            await self._send_embed(ctx, embed, content=mention)
+            return
+
+        await self._handle_account(ctx, username, npsso_value.strip())
 
     async def _ensure_allowed_guild(self, ctx) -> bool:
         if not self.allowed_guild_ids:

@@ -74,8 +74,8 @@ def build_help_embed(prefix: str) -> discord.Embed:
             f"> `{prefix}psn add <region> <product_id> [more IDs…] --pdc YOUR_COOKIE` *(required if the bot wasn't started with `--env`)*\n\n"
             f"> `/psn remove <region> <product_id> [up to 3 more IDs]` *(PDC required)*\n"
             f"> `{prefix}psn remove <region> <product_id> [more IDs…] --pdc YOUR_COOKIE` *(required if the bot wasn't started with `--env`)*\n\n"
-            f"> `/psn account <username>`\n"
-            f"> `{prefix}psn account <username>`\n"
+            f"> `/psn account <username> <npsso_token>` *(NPSSO required for lookups)*\n"
+            f"> `{prefix}psn account <username> --npsso YOUR_TOKEN`\n"
         ),
         inline=False,
     )
@@ -93,7 +93,7 @@ def build_help_embed(prefix: str) -> discord.Embed:
         ),
         inline=False,
     )
-    embed.set_footer(text="Tip: Prefix defaults to '$'. Prefix commands auto-delete your message; add `--pdc YOUR_COOKIE` at the end whenever the bot wasn't started with `--env`.")
+    embed.set_footer(text="Tip: Prefix defaults to '$'. Prefix commands auto-delete your message; add `--pdc YOUR_COOKIE` (unless running with `--env`) and include `--npsso YOUR_TOKEN` for account lookups.")
     return embed
 
 
