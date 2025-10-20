@@ -94,6 +94,16 @@ def mask_value(value: str, visible: int = 4) -> str:
         return value[:visible] + "…" if len(value) > visible else "***"
     return f"{value[:visible]}…{value[-visible:]}"
 
+
+def collect_product_ids(*ids: str | None) -> list[str]:
+    collected: list[str] = []
+    for value in ids:
+        if value:
+            stripped = value.strip()
+            if stripped:
+                collected.append(stripped)
+    return collected
+
 def normalize_region_input(value: str) -> str:
     candidate = value.strip()
     if not candidate:
@@ -702,10 +712,15 @@ class PSNCog(commands.Cog):
         ctx: discord.ApplicationContext,
         region: Option(str, description=region_desc),  # type: ignore
         product_id: Option(str, description=id_desc),  # type: ignore
+        product_id2: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
+        product_id3: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
+        product_id4: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
     ) -> None:
+        optional_ids = collect_product_ids(product_id2, product_id3, product_id4)
+        product_ids = [product_id] + optional_ids
         await self._handle_check(
             ctx,
-            product_ids=[product_id],
+            product_ids=product_ids,
             region=region,
         )
 
@@ -715,7 +730,10 @@ class PSNCog(commands.Cog):
         ctx: discord.ApplicationContext,
         region: Option(str, description=region_desc),  # type: ignore
         product_id: Option(str, description=id_desc),  # type: ignore
-        pdc: Option(str, description=token_desc, **PDC_OPTION_KWARGS),  # type: ignore[arg-type]
+        product_id2: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
+        product_id3: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
+        product_id4: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
+        pdc: Option(str, description=token_desc, **PDC_OPTION_KWARGS) = None,  # type: ignore[arg-type]
     ) -> None:
         if pdc is None and not self.api.has_pdc_fallback():
             await ctx.respond(
@@ -730,9 +748,10 @@ class PSNCog(commands.Cog):
                 ephemeral=True,
             )
             return
+        product_ids = [product_id] + collect_product_ids(product_id2, product_id3, product_id4)
         await self._handle_add_or_remove(
             ctx,
-            product_ids=[product_id],
+            product_ids=product_ids,
             region=region,
             cookie_arg=pdc,
             cookie_override=pdc is not None,
@@ -745,7 +764,10 @@ class PSNCog(commands.Cog):
         ctx: discord.ApplicationContext,
         region: Option(str, description=region_desc),  # type: ignore
         product_id: Option(str, description=id_desc),  # type: ignore
-        pdc: Option(str, description=token_desc, **PDC_OPTION_KWARGS),  # type: ignore[arg-type]
+        product_id2: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
+        product_id3: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
+        product_id4: Option(str, description="Additional product ID (optional)", default=None) = None,  # type: ignore[arg-type]
+        pdc: Option(str, description=token_desc, **PDC_OPTION_KWARGS) = None,  # type: ignore[arg-type]
     ) -> None:
         if pdc is None and not self.api.has_pdc_fallback():
             await ctx.respond(
@@ -760,9 +782,10 @@ class PSNCog(commands.Cog):
                 ephemeral=True,
             )
             return
+        product_ids = [product_id] + collect_product_ids(product_id2, product_id3, product_id4)
         await self._handle_add_or_remove(
             ctx,
-            product_ids=[product_id],
+            product_ids=product_ids,
             region=region,
             cookie_arg=pdc,
             cookie_override=pdc is not None,

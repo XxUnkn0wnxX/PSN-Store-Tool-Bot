@@ -111,9 +111,9 @@ The bot auto-syncs commands in every guild listed in `GUILD_ID` on startup and r
 
 | Command | Description |
 | --- | --- |
-| `/psn check <region> <product_id> [product_id ...]` | Fetch avatar previews without needing NPSSO/PDC overrides. |
-| `/psn add <region> <product_id>` | Add a single avatar to cart. Provide PDC unless the bot runs with `--env`. |
-| `/psn remove <region> <product_id>` | Remove a single avatar from cart. Provide PDC unless the bot runs with `--env`. |
+| `/psn check <region> <product_id> [up to 3 more IDs]` | Fetch up to four avatar previews without needing NPSSO/PDC overrides. |
+| `/psn add <region> <product_id> [up to 3 more IDs]` | Add up to four avatars to cart. Provide PDC unless the bot runs with `--env`. |
+| `/psn remove <region> <product_id> [up to 3 more IDs]` | Remove up to four avatars from cart. Provide PDC unless the bot runs with `--env`. |
 | `/psn account <username>` | Resolve a PSN username to the account ID (requires NPSSO in `.env`). |
 | `/ping`, `/tutorial`, `/credits`, `/help` | Utility commands for latency, onboarding, credits, and quick reference. |
 

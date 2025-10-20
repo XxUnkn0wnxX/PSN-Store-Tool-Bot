@@ -66,11 +66,11 @@ def build_help_embed(prefix: str) -> discord.Embed:
     embed.add_field(
         name="🎮 PSN Avatar Tools",
         value=(
-            f"> `/psn check <region> <product_id> [product_id ...]`\n"
+            f"> `/psn check <region> <product_id> [up to 3 more IDs]`\n"
             f"> `{prefix}psn check <region> <product_id> [more IDs…]`\n\n"
-            f"> `/psn add <region> <product_id>`\n"
+            f"> `/psn add <region> <product_id> [up to 3 more IDs]`\n"
             f"> `{prefix}psn add <region> <product_id> [more IDs…] --pdc YOUR_COOKIE` *(required if the bot wasn't started with `--env`)*\n\n"
-            f"> `/psn remove <region> <product_id>`\n"
+            f"> `/psn remove <region> <product_id> [up to 3 more IDs]`\n"
             f"> `{prefix}psn remove <region> <product_id> [more IDs…] --pdc YOUR_COOKIE` *(required if the bot wasn't started with `--env`)*\n\n"
             f"> `/psn account <username>`\n"
             f"> `{prefix}psn account <username>`\n"
