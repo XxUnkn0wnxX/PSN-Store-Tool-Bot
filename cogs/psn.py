@@ -458,7 +458,7 @@ class PSNCog(commands.Cog):
                 message = e.message if getattr(e, "message", None) else str(e)
                 failures.append((pid, message))
 
-        followup = self._is_app_context(ctx)
+        is_app_context = self._is_app_context(ctx)
 
         def make_success_embed(pid: str, avatar_url: str, index: int, total: int) -> discord.Embed:
             embed = discord.Embed(
@@ -470,49 +470,37 @@ class PSNCog(commands.Cog):
             embed.set_footer(text="🎮 Ready to add to cart!")
             return embed
 
-        async def update_progress(embed: discord.Embed) -> None:
-            if is_app_context:
-                await ctx.edit(embed=embed)
-            elif progress_message is not None:
-                await progress_message.edit(embed=embed)
-            else:
-                await self._send_embed(ctx, embed, content=mention)
+        embeds_to_send: list[discord.Embed] = []
 
         if successes:
-            first_pid, first_url = successes[0]
-            await update_progress(make_success_embed(first_pid, first_url, 1, len(successes)))
-            for index, (pid, avatar_url) in enumerate(successes[1:], start=2):
-                embed = make_success_embed(pid, avatar_url, index, len(successes))
-                await self._send_embed(
-                    ctx,
-                    embed,
-                    followup=followup,
-                    content=mention if not is_app_context else None,
-                )
-        else:
-            failure_lines = [f"• **{pid}** — {msg}" for pid, msg in failures] or ["No avatars matched the provided IDs."]
-            embed_error = discord.Embed(
-                title="❌ Failed to Fetch Avatars",
-                description="\n".join(failure_lines),
-                color=0xe74c3c,
-            )
-            embed_error.set_footer(text="💡 Check the inputs and try again!")
-            await update_progress(embed_error)
-            return
+            total_success = len(successes)
+            for index, (pid, avatar_url) in enumerate(successes, start=1):
+                embeds_to_send.append(make_success_embed(pid, avatar_url, index, total_success))
 
         if failures:
             failure_summary = discord.Embed(
                 title="⚠️ Some Avatars Failed",
-                description="\n".join(f"• **{pid}** — {msg}" for pid, msg in failures),
-                color=0xf1c40f,
+                description="\n".join(f"• **{pid}** — {msg}" for pid, msg in failures) or "No avatars matched the provided IDs.",
+                color=0xf1c40f if successes else 0xe74c3c,
             )
             failure_summary.set_footer(text="💡 Review the failed entries and try again.")
-            await self._send_embed(
-                ctx,
-                failure_summary,
-                followup=followup,
-                content=mention if not is_app_context else None,
+            embeds_to_send.append(failure_summary)
+
+        if not embeds_to_send:
+            embeds_to_send.append(
+                discord.Embed(
+                    title="❌ Failed to Fetch Avatars",
+                    description="No avatars matched the provided IDs.",
+                    color=0xe74c3c,
+                )
             )
+
+        if is_app_context:
+            await ctx.edit(embeds=embeds_to_send)
+        elif progress_message is not None:
+            await progress_message.edit(content=mention, embeds=embeds_to_send)
+        else:
+            await ctx.send(content=mention, embeds=embeds_to_send, silent=True)
 
     async def _handle_add_or_remove(
         self,
