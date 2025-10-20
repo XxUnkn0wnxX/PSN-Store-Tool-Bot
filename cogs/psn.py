@@ -952,7 +952,7 @@ class PSNCog(commands.Cog):
             if hasattr(ctx, "respond"):
                 await ctx.respond(embed=embed)
             else:
-                await ctx.send(embed=embed)
+                await self._send_embed(ctx, embed, content=self._mention(ctx))
             return False
         return True
 
