@@ -307,6 +307,14 @@ class PSNCog(commands.Cog):
         author = getattr(ctx, "author", None) or getattr(ctx, "user", None)
         return author.mention if author else ""
 
+    @staticmethod
+    def _actor_label(ctx) -> str:
+        user = getattr(ctx, "author", None) or getattr(ctx, "user", None)
+        if not user:
+            return "unknown user"
+        tag = getattr(user, "display_name", None) or getattr(user, "name", None) or str(user)
+        return f"{tag} ({user.id})"
+
     async def _send_embed(
         self,
         ctx,
@@ -363,6 +371,7 @@ class PSNCog(commands.Cog):
 
         ids = [pid.strip() for pid in product_ids if pid.strip()]
         mention = self._mention(ctx)
+        actor = self._actor_label(ctx)
 
         if not ids:
             embed = discord.Embed(
@@ -423,6 +432,7 @@ class PSNCog(commands.Cog):
             request = PSNRequest(
                 region=region,
                 product_id=pid,
+                requested_by=actor,
             )
 
             try:
@@ -515,11 +525,12 @@ class PSNCog(commands.Cog):
             return
 
         if cookie_arg:
-            print(f"[psn] Using custom PDC from command for {ctx.author}: {mask_value(cookie_arg)}")
+            print(f"[psn] Using custom PDC from command for {self._actor_label(ctx)}: {mask_value(cookie_arg)}")
 
         action_text = "Adding to Cart" if operation == "add" else "Removing from Cart"
         progress_description = f"⏳ Processing {len(cleaned_ids)} item(s)..."
         mention = self._mention(ctx)
+        actor = self._actor_label(ctx)
 
         is_app_context = self._is_app_context(ctx)
 
@@ -543,6 +554,7 @@ class PSNCog(commands.Cog):
                 region=region,
                 product_id=pid,
                 pdccws_p=cookie_arg,
+                requested_by=actor,
             )
 
             try:

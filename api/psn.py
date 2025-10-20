@@ -25,6 +25,7 @@ class PSNRequest:
     product_id: str
     pdccws_p: str | None = None
     npsso: str | None = None
+    requested_by: str | None = None
 
 class PSN:
     def __init__(self, npsso: str | None, default_pdc: str | None = None, env_path: str | Path | None = None):
@@ -63,7 +64,8 @@ class PSN:
         npsso_value = request.npsso or self._generate_npsso()
 
         if request.pdccws_p:
-            print(f"[psn] Generated NPSSO for request: {npsso_value}")
+            actor = request.requested_by or "manual override"
+            print(f"[psn] Generated NPSSO for {actor}: {npsso_value}")
 
         if not cookie_value:
             raise APIError(
