@@ -243,6 +243,7 @@ class PSNCog(commands.Cog):
         allow_cookie: bool = False,
     ) -> tuple[str, list[str], str | None] | None:
         payload = (payload or "").strip()
+        mention = self._mention(ctx)
         if not payload:
             usage = f"{ctx.prefix or ''}{ctx.invoked_with} <region> <product_id> [more_ids...]"
             embed = discord.Embed(
@@ -250,7 +251,7 @@ class PSNCog(commands.Cog):
                 description=f"Provide a region followed by one or more product IDs.\nExample: `{usage}`",
                 color=0xf1c40f,
             )
-            await ctx.send(embed=embed)
+            await self._send_embed(ctx, embed, content=mention)
             return None
 
         tokens: list[str] = []
@@ -265,7 +266,7 @@ class PSNCog(commands.Cog):
                 description=f"You need to supply at least one product ID after the region.\nExample: `{usage}`",
                 color=0xf1c40f,
             )
-            await ctx.send(embed=embed)
+            await self._send_embed(ctx, embed, content=mention)
             return None
 
         cookie_value: str | None = None
@@ -280,7 +281,7 @@ class PSNCog(commands.Cog):
                     description="Provide the cookie as `--pdc YOUR_COOKIE` or `--pdc=YOUR_COOKIE` at the end of the command.",
                     color=0xf39c12,
                 )
-                await ctx.send(embed=embed, silent=True)
+                await self._send_embed(ctx, embed, content=mention)
                 return None
             elif len(tokens) >= 2 and tokens[-2].lower() == "--pdc":
                 cookie_value = tokens[-1]
@@ -294,7 +295,7 @@ class PSNCog(commands.Cog):
                     description="Provide the cookie as `--pdc YOUR_COOKIE` or `--pdc=YOUR_COOKIE` at the end of the command.",
                     color=0xf39c12,
                 )
-                await ctx.send(embed=embed, silent=True)
+                await self._send_embed(ctx, embed, content=mention)
                 return None
 
         try:
@@ -317,11 +318,11 @@ class PSNCog(commands.Cog):
                             ),
                             color=0xf1c40f,
                         )
-                        await ctx.send(embed=embed)
+                        await self._send_embed(ctx, embed, content=mention)
                         return None
                     else:
                         # First token isn't a product ID and isn't a valid region -> invalid region.
-                        await ctx.send(embed=invalid_region)
+                        await self._send_embed(ctx, invalid_region, content=mention)
                         return None
                 else:
                     tokens = [tokens[1], tokens[0], *tokens[2:]]
@@ -347,7 +348,7 @@ class PSNCog(commands.Cog):
                     ),
                     color=0xe67e22,
                 )
-                await ctx.send(embed=embed)
+                await self._send_embed(ctx, embed, content=mention)
                 return None
 
         return region, product_ids, cookie_value
