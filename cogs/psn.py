@@ -105,6 +105,19 @@ def collect_product_ids(*ids: str | None) -> list[str]:
                 collected.append(stripped)
     return collected
 
+def looks_like_product_id(value: str) -> bool:
+    v = (value or "").strip().upper()
+    if len(v) < 10:
+        return False
+    if ("-" not in v) or ("_" not in v):
+        return False
+    # Common container/SKU formats seen in practice (loose on the tail)
+    if re.match(r"^[A-Z]{2}\d{4}-[A-Z0-9_]+_[0-9]{2}-[A-Z0-9_]+$", v):
+        return True
+    if re.match(r"^[A-Z]{2}\d{4}-[A-Z0-9_]+$", v):
+        return True
+    return False
+
 def normalize_region_input(value: str) -> str:
     candidate = value.strip()
     if not candidate:
@@ -287,23 +300,29 @@ class PSNCog(commands.Cog):
         try:
             normalize_region_input(tokens[0])
         except APIError:
+            first = tokens[0]
             if len(tokens) >= 2:
                 try:
                     normalize_region_input(tokens[1])
                 except APIError:
-                    # Neither token looks like a region; prompt with usage guidance
-                    # instead of showing an "Invalid Region" error.
-                    usage = f"{ctx.prefix or ''}{ctx.invoked_with} <region> <product_id> [more_ids...]"
-                    embed = discord.Embed(
-                        title="ℹ️ Missing Arguments",
-                        description=(
-                            "The first argument must be a region code (e.g. `en-US`, `en-GB`, `au`).\n"
-                            f"Example: `{usage}`"
-                        ),
-                        color=0xf1c40f,
-                    )
-                    await ctx.send(embed=embed)
-                    return None
+                    # Decide between "missing region" vs "invalid region" based on whether
+                    # the first token looks like a product ID.
+                    if looks_like_product_id(first):
+                        usage = f"{ctx.prefix or ''}{ctx.invoked_with} <region> <product_id> [more_ids...]"
+                        embed = discord.Embed(
+                            title="ℹ️ Missing Arguments",
+                            description=(
+                                "The first argument must be a region code (e.g. `en-US`, `en-GB`, `au`).\n"
+                                f"Example: `{usage}`"
+                            ),
+                            color=0xf1c40f,
+                        )
+                        await ctx.send(embed=embed)
+                        return None
+                    else:
+                        # First token isn't a product ID and isn't a valid region -> invalid region.
+                        await ctx.send(embed=invalid_region)
+                        return None
                 else:
                     tokens = [tokens[1], tokens[0], *tokens[2:]]
 
