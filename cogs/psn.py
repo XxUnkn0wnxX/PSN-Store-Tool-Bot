@@ -581,6 +581,7 @@ class PSNCog(commands.Cog):
         else:
             progress_message = await ctx.send(content=mention, embed=progress_embed, silent=True)
 
+        results: list[tuple[str, bool, str | None]] = []
         successes: list[str] = []
         failures: list[tuple[str, str]] = []
 
@@ -598,6 +599,7 @@ class PSNCog(commands.Cog):
                 else:
                     await self.api.remove_from_cart(request)
                 successes.append(pid)
+                results.append((pid, True, None))
             except APIError as e:
                 message = e.message if getattr(e, "message", None) else str(e)
                 if getattr(e, "code", None) == "auth":
@@ -618,6 +620,7 @@ class PSNCog(commands.Cog):
                         await self._send_embed(ctx, embed_error, content=mention)
                     return
                 failures.append((pid, message))
+                results.append((pid, False, message))
 
         if successes and not failures:
             title = "✅ Added Successfully!" if operation == "add" else "✅ Removed Successfully!"
@@ -642,9 +645,22 @@ class PSNCog(commands.Cog):
             else "🎮 Item removed from PlayStation Store cart!"
         )
 
+        lines: list[str] = []
+        for pid, succeeded, message in results:
+            if succeeded:
+                status_text = "added to cart" if operation == "add" else "removed from cart"
+                lines.append(f"✅ **{pid}** *({status_text})*")
+            else:
+                lowered = (message or "").lower()
+                if "already" in lowered and "cart" in lowered:
+                    reason = "already in cart" if operation == "add" else "already removed"
+                else:
+                    reason = message or "failed"
+                lines.append(f"❌ **{pid}** *({reason})*")
+
         embed_result = discord.Embed(
             title=title,
-            description=description,
+            description="\n".join(lines) if lines else description,
             color=color,
         )
         embed_result.set_footer(text=footer)
