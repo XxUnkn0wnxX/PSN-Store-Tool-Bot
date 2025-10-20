@@ -507,7 +507,12 @@ class PSNCog(commands.Cog):
                 color=0xf1c40f,
             )
             failure_summary.set_footer(text="💡 Review the failed entries and try again.")
-            await self._send_embed(ctx, failure_summary, followup=followup)
+            await self._send_embed(
+                ctx,
+                failure_summary,
+                followup=followup,
+                content=mention if not is_app_context else None,
+            )
 
     async def _handle_add_or_remove(
         self,
