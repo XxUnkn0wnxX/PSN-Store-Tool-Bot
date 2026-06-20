@@ -8,10 +8,12 @@ tutorialstring = (
     "🎮 **1**. First go to playstation.com\n"
     "🌍 **2**. When you have loaded check the link and you will see your region\n"
     "🔐 **3**. Now login to your account\n"
-    "🔍 **4**. Open Browser's Dev Tools\n"
-    "📱 **5**. Click on the 'Application' option\n"
-    "🍪 **6**. Navigate to cookies for playstation.com and look for the 'pdccws_p' cookie. That cookie is your token\n"
-    "🆔 **7**. You will find the avatar id by using /psprices product_id with the url to the avatar page on psprices\n"
+    "🔍 **4**. Open Chrome's Dev Tools\n"
+    "📱 **5**. Click on the __Application__ option\n"
+    "🍪 **6**. Navigate to cookies for playstation.com and look for the `pdccws_p` cookie. That cookie is your token\n"
+    "🆔 **7**. You will find the avatar id by using /psprices product_id with the url to the avatar page on psprices\n\n"
+    "> ℹ️ **Browser note:** These instructions are for Chromium-based browsers such as Chrome. "
+    "If you use another browser, you'll need to find its cookie storage tab yourself.\n"
 )
 
 credits_string = (
