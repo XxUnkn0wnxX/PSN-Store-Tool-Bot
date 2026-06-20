@@ -19,6 +19,7 @@ Built for convenience and PlayStation fans! 💙
 
 Before running the bot, you'll need:
 
+- ✅ **Python 3.10 through 3.15** (tested on Python 3.14; Python 3.16 and later are not supported)
 - ✅ A valid **pdccws_p cookie** (PDC) from [playstation.com](https://www.playstation.com)
 - ✅ Your **Discord bot token**
 - ✅ The **Discord server ID(s)** you want the bot to run in (list all allowed servers)

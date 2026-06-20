@@ -1,3 +1,3 @@
-py-cord
-python-dotenv
-PSNAWP
+py-cord==2.8.0
+python-dotenv==1.2.2
+PSNAWP==3.0.3
