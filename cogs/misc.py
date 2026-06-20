@@ -8,7 +8,7 @@ tutorialstring = (
     "🎮 **1**. First go to playstation.com\n"
     "🌍 **2**. When you have loaded check the link and you will see your region\n"
     "🔐 **3**. Now login to your account\n"
-    "🔍 **4**. Go to inspect element and click '>>' at the top\n"
+    "🔍 **4**. Open Browser's Dev Tools\n"
     "📱 **5**. Click on the 'Application' option\n"
     "🍪 **6**. Navigate to cookies for playstation.com and look for the 'pdccws_p' cookie. That cookie is your token\n"
     "🆔 **7**. You will find the avatar id by using /psprices product_id with the url to the avatar page on psprices\n"
