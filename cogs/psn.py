@@ -198,7 +198,7 @@ class PSNCog(commands.Cog):
         elif need_cookie:
             description_lines.insert(
                 len(description_lines) - 1,
-                "Detected issue with the pdccws_p cookie.",
+                "Detected issue with the `pdccws_p` cookie.",
             )
         elif need_npsso:
             description_lines.insert(
