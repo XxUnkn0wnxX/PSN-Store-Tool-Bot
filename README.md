@@ -20,7 +20,7 @@ Built for convenience and PlayStation fans! 💙
 Before running the bot, you'll need:
 
 - ✅ **Python 3.10 through 3.15** (tested on Python 3.14; Python 3.16 and later are not supported)
-- ✅ A valid **pdccws_p cookie** (PDC) from [playstation.com](https://www.playstation.com)
+- ✅ A valid **pdccws_p cookie** (PDC) from the [PlayStation Store](https://store.playstation.com/)
 - ✅ Your **Discord bot token**
 - ✅ The **Discord server ID(s)** you want the bot to run in (list all allowed servers)
 
@@ -64,7 +64,7 @@ cp .env.template .env
 PDC=your_pdccws_p_cookie
 ```
 
-- `PDC` is the `pdccws_p` cookie you can grab from your browser after logging into [playstation.com](https://www.playstation.com). Start the bot with `--env` so prefix commands can fall back to this value. Slash commands always require you to supply the cookie field.
+- `PDC` is the `pdccws_p` cookie you can grab from your browser after logging into the [PlayStation Store](https://store.playstation.com/). Start the bot with `--env` so prefix commands can fall back to this value. Slash commands always require you to supply the cookie field.
 - Provide NPSSO tokens on-demand when you run the account lookup commands. See the legacy section at the end of this README for instructions on grabbing a fresh NPSSO cookie.
 
 ---
@@ -164,7 +164,7 @@ Each ID is processed individually; the bot sends the familiar avatar preview emb
 
 NPSSO tokens are no longer required for cart operations, but you can still generate one if you want `/psn account` or other advanced PSN features.
 
-1. Log in to your PlayStation account at [playstation.com](https://www.playstation.com)
+1. Log in to your PlayStation account at the [PlayStation Store](https://store.playstation.com/)
 2. Open this URL:  
    👉 [`https://ca.account.sony.com/api/v1/ssocookie`](https://ca.account.sony.com/api/v1/ssocookie)
 3. Look for the line containing:
