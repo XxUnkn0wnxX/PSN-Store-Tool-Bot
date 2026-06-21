@@ -218,17 +218,18 @@ class PSN:
                 "Origin": "https://checkout.playstation.com",
                 "content-type": "application/json",
                 "Accept-Language": request.region,
+                "apollographql-client-name": "@sie-ppr-web-checkout/app",
                 "Cookie": f"AKA_A2=A; pdccws_p={cookie_value}; isSignedIn=true; userinfo={npsso_value}; p=0; gpdcTg=%5B1%5D"
                 }
                 self.data_json = {
                     "operationName": "addToCart",
                     "variables": {
-                        "skus": [{"skuId": ""}]
+                        "skus": [{"skuId": "", "rewardId": "OUTRIGHT"}]
                     },
                     "extensions": {
                         "persistedQuery": {
                             "version": 1,
-                            "sha256Hash": "93eb198753e06cba3a30ed3a6cd3abc1f1214c11031ffc5b0a5ca6d08c77061f"
+                            "sha256Hash": "b6ac14d8bb153d4ed115bc8135237728e03e5cb8b3ad2680311db7b356f16cd9"
                         }
                     }
                 }
@@ -239,6 +240,7 @@ class PSN:
                 "Origin": "https://checkout.playstation.com",
                 "content-type": "application/json",
                 "Accept-Language": request.region,
+                "apollographql-client-name": "@sie-ppr-web-checkout/app",
                 "Cookie": f"AKA_A2=A; pdccws_p={cookie_value}; isSignedIn=true; userinfo={npsso_value}; p=0; gpdcTg=%5B1%5D"
                 }
                 self.data_json = {
@@ -249,7 +251,7 @@ class PSN:
                     "extensions": {
                         "persistedQuery": {
                             "version": 1,
-                            "sha256Hash": "55e50c2157c33e84f409d2a52f3bb7c19db62b144fb49e75a1a9b0acad276bba"
+                            "sha256Hash": "3be90da9dcb3d6f500a40fbbd42b7e2b83a40b493c6b1ff41cf50478797bd47d"
                         }
                     }
                 }
