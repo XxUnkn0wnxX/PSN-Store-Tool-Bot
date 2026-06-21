@@ -70,12 +70,12 @@ def build_help_embed(prefix: str) -> discord.Embed:
     embed.add_field(
         name="🎮 PSN Avatar Tools",
         value=(
-            f"> `/psn check <region> <product_id> [up to 3 more IDs]`\n"
-            f"> `{prefix}psn check <region> <product_id> [more IDs…]`\n\n"
-            f"> `/psn add <region> <product_id> [up to 3 more IDs]` *(PDC required)*\n"
-            f"> `{prefix}psn add <region> <product_id> [more IDs…] --pdc YOUR_COOKIE` *(required if the bot wasn't started with `--env`)*\n\n"
-            f"> `/psn remove <region> <product_id> [up to 3 more IDs]` *(PDC required)*\n"
-            f"> `{prefix}psn remove <region> <product_id> [more IDs…] --pdc YOUR_COOKIE` *(required if the bot wasn't started with `--env`)*\n\n"
+            f"> `/psn check <region> <product_id (SKU)> [up to 3 more IDs]`\n"
+            f"> `{prefix}psn check <region> <product_id (SKU)> [more IDs…]`\n\n"
+            f"> `/psn add <region> <product_id (SKU)> [up to 3 more IDs]` *(PDC required)*\n"
+            f"> `{prefix}psn add <region> <product_id (SKU)> [more IDs…] --pdc YOUR_COOKIE` *(required if the bot wasn't started with `--env`)*\n\n"
+            f"> `/psn remove <region> <product_id (SKU)> [up to 3 more IDs]` *(PDC required)*\n"
+            f"> `{prefix}psn remove <region> <product_id (SKU)> [more IDs…] --pdc YOUR_COOKIE` *(required if the bot wasn't started with `--env`)*\n\n"
             f"> `/psn account <username> <npsso_token>` *(NPSSO required for lookups)*\n"
             f"> `{prefix}psn account <username> --npsso YOUR_TOKEN`\n"
         ),
