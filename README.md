@@ -175,6 +175,20 @@ NPSSO tokens are no longer required for cart operations, but you can still gener
 
 ---
 
+## 🔗 Checkout Link Generator
+
+[`LinkGen.py`](LinkGen.py) is a standalone, cookie-free utility that resolves
+regional PlayStation SKUs and generates browser checkout links:
+
+```bash
+python3 LinkGen.py --region au
+```
+
+For source-file mode, supported countries, locale aliases, and complete usage
+instructions, see [LinkGen documentation](docs/LinkGen.md).
+
+---
+
 ## 💬 Support & Feedback
 
 Have issues or ideas?  
