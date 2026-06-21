@@ -167,6 +167,14 @@ def looks_like_product_id(value: str) -> bool:
         return True
     return False
 
+
+def looks_like_cookie(value: str) -> bool:
+    normalized = (value or "").strip().lower()
+    return normalized.startswith(("s%3a", "s%", "s:")) or any(
+        symbol in normalized for symbol in ("%", "=", ";")
+    )
+
+
 def normalize_region_input(value: str) -> str:
     candidate = value.strip()
     if not candidate:
@@ -383,9 +391,7 @@ class PSNCog(commands.Cog):
         product_ids = tokens[1:]
 
         if not allow_cookie:
-            cookie_like = [
-                pid for pid in product_ids if any(symbol in pid for symbol in ("%", "=", ";"))
-            ]
+            cookie_like = [pid for pid in product_ids if looks_like_cookie(pid)]
             if cookie_like:
                 embed = discord.Embed(
                     title="⚠️ Cookie Detected",
