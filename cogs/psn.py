@@ -292,7 +292,6 @@ class PSNCog(commands.Cog):
         self,
         ctx: commands.Context,
         payload: str,
-        operation: str,
         allow_cookie: bool = False,
     ) -> tuple[str, list[str], str | None] | None:
         payload = (payload or "").strip()
@@ -388,16 +387,11 @@ class PSNCog(commands.Cog):
                 pid for pid in product_ids if any(symbol in pid for symbol in ("%", "=", ";"))
             ]
             if cookie_like:
-                slash_equiv = {
-                    "add": "add",
-                    "remove": "remove",
-                    "check": "check",
-                }.get(operation, "check")
                 embed = discord.Embed(
                     title="⚠️ Cookie Detected",
                     description=(
-                        "Prefix commands cannot accept cookie overrides. "
-                        f"Use the slash command variant (e.g. `/psn {slash_equiv}`) to supply the pdccws_p cookie."
+                        "Cookie overrides are not used by the prefix check command. "
+                        "Remove the cookie and try again."
                     ),
                     color=0xe67e22,
                 )
@@ -942,7 +936,7 @@ class PSNCog(commands.Cog):
     @psn_prefix.command(name="check")
     async def psn_prefix_check(self, ctx: commands.Context, *, entries: str = "") -> None:
         await self._delete_prefix_message(ctx)
-        parsed = await self._prepare_prefix_batch(ctx, entries, "check")
+        parsed = await self._prepare_prefix_batch(ctx, entries)
         if parsed is None:
             return
         region, product_ids, _ = parsed
@@ -955,7 +949,7 @@ class PSNCog(commands.Cog):
     @psn_prefix.command(name="add")
     async def psn_prefix_add(self, ctx: commands.Context, *, entries: str = "") -> None:
         await self._delete_prefix_message(ctx)
-        parsed = await self._prepare_prefix_batch(ctx, entries, "add", allow_cookie=True)
+        parsed = await self._prepare_prefix_batch(ctx, entries, allow_cookie=True)
         if parsed is None:
             return
         region, product_ids, cookie = parsed
@@ -971,7 +965,7 @@ class PSNCog(commands.Cog):
     @psn_prefix.command(name="remove")
     async def psn_prefix_remove(self, ctx: commands.Context, *, entries: str = "") -> None:
         await self._delete_prefix_message(ctx)
-        parsed = await self._prepare_prefix_batch(ctx, entries, "remove", allow_cookie=True)
+        parsed = await self._prepare_prefix_batch(ctx, entries, allow_cookie=True)
         if parsed is None:
             return
         region, product_ids, cookie = parsed
