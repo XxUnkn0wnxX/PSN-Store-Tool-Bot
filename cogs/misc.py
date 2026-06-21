@@ -11,7 +11,7 @@ tutorialstring = (
     "🔍 **4**. Open Chrome's Dev Tools\n"
     "📱 **5**. Click on the __Application__ tab\n"
     "🍪 **6**. Navigate to cookies for store.playstation.com and look for the `pdccws_p` cookie. That cookie is your token\n"
-    "🆔 **7**. You will find the avatar id by using `/psprices product_id` with the url to the avatar page on psprices\n\n"
+    "🆔 **7**. Copy the avatar product ID (SKU) shown on its PSPrices page and use it with the PSN commands\n\n"
     "> ℹ️ **Browser note:** These instructions are for Chromium-based browsers such as Chrome. "
     "If you use another browser, you'll need to find its cookie storage tab yourself.\n"
 )
