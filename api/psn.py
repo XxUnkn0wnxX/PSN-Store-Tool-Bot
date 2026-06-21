@@ -224,7 +224,7 @@ class PSN:
                 self.data_json = {
                     "operationName": "addToCart",
                     "variables": {
-                        "skus": [{"skuId": "", "rewardId": "OUTRIGHT"}]
+                        "skus": [{"skuId": ""}]
                     },
                     "extensions": {
                         "persistedQuery": {
