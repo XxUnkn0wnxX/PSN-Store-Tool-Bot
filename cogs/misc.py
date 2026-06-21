@@ -95,7 +95,7 @@ def build_help_embed(prefix: str) -> discord.Embed:
         ),
         inline=False,
     )
-    embed.set_footer(text="Tip: Prefix defaults to `$`. Prefix commands auto-delete your message; add `--pdc YOUR_COOKIE` (unless running with `--env`) and include `--npsso YOUR_TOKEN` for account lookups.")
+    embed.set_footer(text="Tip: Prefix defaults to '$'. Prefix commands auto-delete your message; add '--pdc YOUR_COOKIE' (unless running with '--env') and include '--npsso YOUR_TOKEN' for account lookups.")
     return embed
 
 
