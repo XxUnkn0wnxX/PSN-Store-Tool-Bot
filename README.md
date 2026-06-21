@@ -178,6 +178,16 @@ NPSSO tokens are no longer required for cart operations, but you can still gener
 
 ---
 
+## 🔍 Finding Product SKUs
+
+The check and cart commands can work with any PSN Store product SKU listed on [PSPrices](https://psprices.com/), including avatars, themes, and games. The product must still be recognized by Sony's APIs and available to the selected region and account.
+
+You can optionally install the [PSPrices Show Product SKU userscript](https://raw.githubusercontent.com/XxUnkn0wnxX/Scripts/main/userscripts/PSPrices-Show-Product-SKU.user.js) to display SKUs directly on PSPrices product pages.
+
+The userscript requires [Tampermonkey](https://www.tampermonkey.net/) or a similar browser extension that supports installing and running custom userscripts.
+
+---
+
 ## 🔗 Checkout Link Generator
 
 [`LinkGen.py`](LinkGen.py) is a standalone, cookie-free utility that resolves
