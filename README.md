@@ -200,6 +200,8 @@ python3 LinkGen.py --region au
 For source-file mode, supported countries, locale aliases, and complete usage
 instructions, see [LinkGen documentation](docs/LinkGen.md).
 
+You can optionally install the [PSPrices PlayStation Checkout Link userscript](https://raw.githubusercontent.com/XxUnkn0wnxX/Scripts/main/userscripts/PSPrices-PlayStation-Checkout-Link.user.js) to add cookie-free PlayStation Store checkout controls directly to supported PSPrices avatar and theme pages.
+
 ---
 
 ## 💬 Support & Feedback
