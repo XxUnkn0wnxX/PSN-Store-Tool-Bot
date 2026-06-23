@@ -104,7 +104,7 @@ COUNTRY_OVERRIDES = {
     "ZA": "en-ZA",
 }
 
-FULL_SKU_SUFFIX_RE = re.compile(r"^(?P<product>.+)-[A-Z]\d{3}$", re.IGNORECASE)
+FULL_SKU_SUFFIX_RE = re.compile(r"^(?P<product>.+)-[A-Z0-9]{4}$", re.IGNORECASE)
 
 
 def print_region_help() -> None:
