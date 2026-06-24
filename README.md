@@ -182,7 +182,7 @@ NPSSO tokens are no longer required for cart operations, but you can still gener
 
 The check and cart commands can work with any PSN Store product SKU listed on [PSPrices](https://psprices.com/), including avatars, themes, and games. The product must still be recognized by Sony's APIs and available to the selected region and account.
 
-You can optionally install the [PSPrices Show Product SKU userscript](https://raw.githubusercontent.com/XxUnkn0wnxX/Scripts/main/userscripts/PSPrices-Show-Product-SKU.user.js) to display SKUs directly on PSPrices product pages.
+You can optionally install the [PSPrices Show Product SKU userscript](https://raw.githubusercontent.com/XxUnkn0wnxX/Scripts/master/userscripts/PSPrices-Show-Product-SKU.user.js) to display SKUs directly on PSPrices product pages.
 
 The userscript requires [Tampermonkey](https://www.tampermonkey.net/) or a similar browser extension that supports installing and running custom userscripts.
 
@@ -200,7 +200,7 @@ python3 LinkGen.py --region au
 For source-file mode, supported countries, locale aliases, and complete usage
 instructions, see [LinkGen documentation](docs/LinkGen.md).
 
-You can optionally install the [PSPrices PlayStation Checkout Link userscript](https://raw.githubusercontent.com/XxUnkn0wnxX/Scripts/main/userscripts/PSPrices-PlayStation-Checkout-Link.user.js) to add cookie-free PlayStation Store checkout controls directly to supported PSPrices avatar and theme pages; see its [documentation](https://github.com/XxUnkn0wnxX/Scripts/blob/main/docs/psprices-playstation-checkout-link.md) for details.
+You can optionally install the [PSPrices PlayStation Checkout Link userscript](https://raw.githubusercontent.com/XxUnkn0wnxX/Scripts/master/userscripts/PSPrices-PlayStation-Checkout-Link.user.js) to add cookie-free PlayStation Store checkout controls directly to supported PSPrices avatar and theme pages; see its [documentation](https://github.com/XxUnkn0wnxX/Scripts/blob/master/docs/psprices-playstation-checkout-link.md) for details.
 
 ---
 
